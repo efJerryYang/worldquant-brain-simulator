@@ -9,6 +9,7 @@ from scipy.stats import rankdata
 def ts_sum(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     """
     Wrapper function to estimate rolling sum.
+
     :param df: a pandas DataFrame.
     :param window: the rolling window.
     :return: a pandas DataFrame with the time-series min over the past 'window' days.
@@ -20,6 +21,7 @@ def ts_sum(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
 def sma(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     """
     Wrapper function to estimate SMA.
+
     :param df: a pandas DataFrame.
     :param window: the rolling window.
     :return: a pandas DataFrame with the time-series min over the past 'window' days.
@@ -39,7 +41,7 @@ def stddev(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
 
 def correlation(x: pd.DataFrame, y, window: int = 10) -> pd.DataFrame:
     """
-    Wrapper function to estimate rolling corelations.
+    Wrapper function to estimate rolling correlations.
 
     :param x: a pandas DataFrame.
 
@@ -49,7 +51,7 @@ def correlation(x: pd.DataFrame, y, window: int = 10) -> pd.DataFrame:
     return x.rolling(window).corr(y)
 
 
-def covariance(x, y, window: int = 10):
+def covariance(x, y, window: int = 10) -> pd.DataFrame:
     """
     Wrapper function to estimate rolling covariance.
     :param df: a pandas DataFrame.
@@ -68,7 +70,7 @@ def rolling_rank(na):
     return rankdata(na)[-1]
 
 
-def ts_rank(df: pd.DataFrame, window: int = 10):
+def ts_rank(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     """
     Wrapper function to estimate rolling rank.
     :param df: a pandas DataFrame.
@@ -87,7 +89,7 @@ def rolling_prod(na):
     return np.prod(na)
 
 
-def product(df: pd.DataFrame, window: int = 10):
+def product(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     """
     Wrapper function to estimate rolling product.
     :param df: a pandas DataFrame.
@@ -97,7 +99,7 @@ def product(df: pd.DataFrame, window: int = 10):
     return df.rolling(window).apply(rolling_prod)
 
 
-def ts_min(df: pd.DataFrame, window: int = 10):
+def ts_min(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     """
     Wrapper function to estimate rolling min.
     :param df: a pandas DataFrame.
@@ -107,7 +109,7 @@ def ts_min(df: pd.DataFrame, window: int = 10):
     return df.rolling(window).min()
 
 
-def ts_max(df: pd.DataFrame, window: int = 10):
+def ts_max(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     """
     Wrapper function to estimate rolling min.
     :param df: a pandas DataFrame.
@@ -117,7 +119,7 @@ def ts_max(df: pd.DataFrame, window: int = 10):
     return df.rolling(window).max()
 
 
-def delta(df: pd.DataFrame, period=1):
+def delta(df: pd.DataFrame, period=1) -> pd.DataFrame:
     """
     Wrapper function to estimate difference.
     :param df: a pandas DataFrame.
@@ -127,7 +129,7 @@ def delta(df: pd.DataFrame, period=1):
     return df.diff(period)
 
 
-def delay(df: pd.DataFrame, period=1):
+def delay(df: pd.DataFrame, period=1) -> pd.DataFrame:
     """
     Wrapper function to estimate lag.
     :param df: a pandas DataFrame.
@@ -137,7 +139,7 @@ def delay(df: pd.DataFrame, period=1):
     return df.shift(period)
 
 
-def rank(df: pd.DataFrame):
+def rank(df: pd.DataFrame) -> pd.DataFrame:
     """
     Cross sectional rank
     :param df: a pandas DataFrame.
@@ -147,7 +149,7 @@ def rank(df: pd.DataFrame):
     return df.rank(pct=True)
 
 
-def scale(df: pd.DataFrame, k=1):
+def scale(df: pd.DataFrame, k=1) -> pd.DataFrame:
     """
     Scaling time serie.
     :param df: a pandas DataFrame.
@@ -157,7 +159,7 @@ def scale(df: pd.DataFrame, k=1):
     return df.mul(k).div(np.abs(df).sum())
 
 
-def ts_argmax(df: pd.DataFrame, window: int = 10):
+def ts_argmax(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     """
     Wrapper function to estimate which day ts_max(df, window) occurred on
     :param df: a pandas DataFrame.
@@ -167,7 +169,7 @@ def ts_argmax(df: pd.DataFrame, window: int = 10):
     return df.rolling(window).apply(np.argmax) + 1
 
 
-def ts_argmin(df: pd.DataFrame, window: int = 10):
+def ts_argmin(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     """
     Wrapper function to estimate which day ts_min(df, window) occurred on
     :param df: a pandas DataFrame.
@@ -177,7 +179,7 @@ def ts_argmin(df: pd.DataFrame, window: int = 10):
     return df.rolling(window).apply(np.argmin) + 1
 
 
-def decay_linear(df: pd.DataFrame, period=10):
+def decay_linear(df: pd.DataFrame, period=10) -> pd.DataFrame:
     """
     Linear weighted moving average implementation.
     :param df: a pandas DataFrame.
