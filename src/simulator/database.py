@@ -196,7 +196,7 @@ if __name__ == "__main__":
         where=f"symbol in {tuple(df.values.flatten())}",
     )
     print(df)
-
+    # select * from (select timestamp_ms, count(*) as count from stock_data_US GROUP BY timestamp_ms ORDER BY timestamp_ms) where count >= 3000 and timestamp_ms BETWEEN 1451577600000 and 1472659200000;
     # 用于清理重复数据（如果有）
     # cleanup_stockdata() # data 表没有加约束（因为这样插入快得多，数据量是千万级别）
     # cleanup_stocklist() # list 表有 unique 约束（如果我没记错的话，当时想的是因为就几千条数据，插入速度影响不大），所以清理 list 是多余的操作

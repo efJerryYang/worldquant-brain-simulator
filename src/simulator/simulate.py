@@ -5,7 +5,8 @@ import timeit
 
 
 def load_settings() -> dict:
-    with open("settings.yaml", "r") as f:
+    filepath = os.path.join(os.path.dirname(__file__), "settings.yaml")
+    with open(filepath, "r") as f:
         settings = yaml.safe_load(f)
     return settings
 
@@ -40,6 +41,7 @@ def compute_cumulative_liq(df: pd.DataFrame, inplace=True) -> None:
     """
     # cum by symbol in 90 days
     # df["cumulative_liq"] = df["liquidity"].cumsum()
+    df.sort_values(by=["symbol", "timestamp_ms"], inplace=True)
     df["cumulative_liq"] = df.groupby("symbol")["liquidity"].transform(
         lambda x: x.rolling(90, min_periods=1).sum()
     )
@@ -52,12 +54,41 @@ def compute_cumulative_liq(df: pd.DataFrame, inplace=True) -> None:
     df.reset_index(drop=True, inplace=True)
 
 
+def compute_cum_liq_rank(df: pd.DataFrame, inplace=True) -> None:
+    df.sort_values(by=["dates", "cumulative_liq"], inplace=True)
+    df["cum_liq_rank"] = df.groupby("dates")["cumulative_liq"].rank(
+        ascending=True, method="dense"
+    )
+
+
+def group_data_by_date(df: pd.DataFrame) -> pd.DataFrame:
+    return df.groupby("timestamp_ms").agg(
+        {
+            "symbol": "count",
+            "liquidity": "max",
+            "cumulative_liq": "max",
+        }
+    )
+
+
+def filter_invalid_timestamp_ms(df: pd.DataFrame, inplace=True) -> None:
+    # if the valid agg count of symbol is lower than 200, drop the grouped timestamp_ms
+    ts_list = df.groupby("timestamp_ms").agg({"symbol": "count"})
+    ts_list = ts_list[ts_list["symbol"] < 1].index
+    df.drop(df[df["timestamp_ms"].isin(ts_list)].index, inplace=True)
+    df.reset_index(drop=True, inplace=True)
+
+
+def create_dates_column(df: pd.DataFrame, inplace=True) -> None:
+    df["dates"] = pd.to_datetime(df["timestamp_ms"], unit="ms").dt.date
+
+
 if __name__ == "__main__":
     settings = load_settings()
     setup_runtime_env(settings)
 
     load_start = timeit.default_timer()
-    where_stmt = "timestamp_ms between 1456761600000 and 1646064000000"
+    where_stmt = "timestamp_ms between 1456761600000 and 1646064000000"# limit 1000000"
     df = load_data(
         ["symbol", "timestamp_ms", "open", "high", "low", "close", "volume"],
         "stock_data_US",
@@ -66,7 +97,8 @@ if __name__ == "__main__":
     )
     load_end = timeit.default_timer()
     print(f"Load data in {load_end - load_start:.2f} seconds.")
-
+    
+    create_dates_column(df)
     liq_start = timeit.default_timer()
     compute_liquidity(df)
     liq_end = timeit.default_timer()
@@ -76,4 +108,11 @@ if __name__ == "__main__":
     compute_cumulative_liq(df)
     cum_liq_end = timeit.default_timer()
     print(f"Compute cumulative liquidity in {cum_liq_end - cum_liq_start:.2f} seconds.")
-    print(df)
+    # groupby = group_data_by_date(df)
+    # print(groupby)
+    filter_invalid_timestamp_ms(df)
+    # print(df[df["timestamp_ms"] == "1467604800000"])
+    compute_cum_liq_rank(df)
+    print(df["dates"].min()) # 2016-07-07 
+    print(df[df["dates"] == pd.Timestamp("2022-02-28").date()])
+    # print(df[df["dates"] == pd.Timestamp("2022-03-01").date()])
