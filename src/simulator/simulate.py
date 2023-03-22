@@ -55,9 +55,9 @@ def compute_cumulative_liq(df: pd.DataFrame, inplace=True) -> None:
 
 
 def compute_cum_liq_rank(df: pd.DataFrame, inplace=True) -> None:
-    df.sort_values(by=["dates", "cumulative_liq"], inplace=True)
+    df.sort_values(by=["dates", "cumulative_liq"], inplace=True, ascending=False)
     df["cum_liq_rank"] = df.groupby("dates")["cumulative_liq"].rank(
-        ascending=True, method="dense"
+        ascending=False, method="dense"
     )
 
 
@@ -74,7 +74,7 @@ def group_data_by_date(df: pd.DataFrame) -> pd.DataFrame:
 def filter_invalid_timestamp_ms(df: pd.DataFrame, inplace=True) -> None:
     # if the valid agg count of symbol is lower than 200, drop the grouped timestamp_ms
     ts_list = df.groupby("timestamp_ms").agg({"symbol": "count"})
-    ts_list = ts_list[ts_list["symbol"] < 1].index
+    ts_list = ts_list[ts_list["symbol"] < 200].index
     df.drop(df[df["timestamp_ms"].isin(ts_list)].index, inplace=True)
     df.reset_index(drop=True, inplace=True)
 
