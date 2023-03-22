@@ -1,3 +1,4 @@
+# yli188's original work here: https://github.com/yli188/WorldQuant_alpha101_code
 import numpy as np
 import pandas as pd
 from scipy.stats import rankdata
