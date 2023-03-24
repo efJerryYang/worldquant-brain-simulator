@@ -94,11 +94,7 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
     # Data preprocessing
     df["amount"].replace(0, np.nan, inplace=True)
     df["amount"].interpolate(method="linear", inplace=True)
-    # df["amount"].fillna(
-    #     df.groupby("symbol")["amount"].transform(
-    #         lambda x: x.rolling(window=10, min_periods=1).mean()
-    #     ),
-    # )
+
     # # Cumulative Factor#1 cumulative volume
     # df["cum_volume"] = (
     #     df.groupby("symbol").amount.cumsum() / df["amount"] * df["volume"]
@@ -110,9 +106,11 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
     # Optimization:
     # df['cumulative_volume'] = df.groupby('symbol')['volume'].cumsum()
     # df['cumulative_amount_times_volume'] = df.groupby('symbol')['amount'].cumsum() / df['amount'] * df['volume']
+
     # # Cumulative Factor#3 volume weighted average price
     # df["vwap"] = df["cum_typical_price"] / df["cum_volume"]
     df["vwap"] = df["amount"] / df["volume"]
+
     # Cumulative Factor#4 cumulative liquidity
     # cum by symbol in 90 days
     # df["cumulative_liq"] = df["liquidity"].cumsum()
@@ -120,13 +118,8 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
     df["cumulative_liq"] = df.groupby("symbol")["liquidity"].transform(
         lambda x: x.rolling(90, min_periods=1).sum()
     )
-    # print("Before drop 89 rows")
-    # print(df[df["symbol"] == "UBCP"].iloc[0:30, :])
-    df.drop(
-        df.groupby("symbol").head(89).index, inplace=True
-    )  # TODO: 只是单独的drop不行，这里可能需要还再计算一些内容，不然就浪费掉了一段时间的数据
-    # print("After drop 89 rows")
-    # print(df[df["symbol"] == "UBCP"].iloc[0:30, :])
+
+    df.drop(df.groupby("symbol").head(89).index, inplace=True)
     df.dropna(inplace=True)
     df.reset_index(drop=True, inplace=True)
 
@@ -151,9 +144,8 @@ def group_data_by_date(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def filter_invalid_timestamp_ms(df: pd.DataFrame, inplace=True) -> None:
-    # If the valid agg count of symbol is lower than 200, drop the grouped timestamp_ms
     ts_list = df.groupby("timestamp_ms").agg({"symbol": "count"})
-    ts_list = ts_list[ts_list["symbol"] < 200].index
+    ts_list = ts_list[ts_list["symbol"] < 200].index  # fewer than 200 available stocks
     df.drop(df[df["timestamp_ms"].isin(ts_list)].index, inplace=True)
     df.reset_index(drop=True, inplace=True)
 
@@ -354,9 +346,6 @@ def process_day(
     today: str,
     f: Callable,
 ):
-    # logger.debug(f"Processing {today}...")
-    # if prev_day < "2016-03-01":
-    #     return None
     s = simulator
     # universe = s.pre_processing(prev_day)
     universe = s.filter_by_universe(prev_day)
