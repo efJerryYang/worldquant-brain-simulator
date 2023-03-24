@@ -1,9 +1,18 @@
 # WorldQuant BRAIN Simulator
 
 > **Help Wanted**: See issue [#3](https://github.com/efJerryYang/worldquant-brain-simulator/issues/3) for more details.
+
 ## Introduction
 
 This is a simulator to help with backtesting your alphas offline for platform WorldQuant Brain
+
+## Demo
+
+Some problems exist (data, expressions, procedure), so the results are still different from the platform's.
+
+![](./docs/9month_insample.png)
+
+![](./docs/9month_insample_platform.png)
 
 ## Project Structure
 
