@@ -201,16 +201,45 @@ class Simulator:
             # d[str(date)].drop("timestamp_ms", axis=1, inplace=True)
         return d
 
+    def pre_processing(self, date: str) -> pd.DataFrame:
+        return self.filter_by_universe(date)
+
     def filter_by_universe(self, date: str) -> pd.DataFrame:
         # universe: Top3000 # Top1000, Top500, Top200
         # parse the digit from string, regardless of the letter in the string
-        top = self.settings["universe"].lower().strip("top")
+        top = self.settings.get("universe", "top3000").lower().strip("top")
         if top.isdigit():
             top = int(top)
         else:
             top = 3000
             print("Invalid universe setting, use default value 3000.")
-        return self.data_dict[date][self.data_dict[date]["cum_liq_rank"] < top + 1]
+        return self.data_dict[date][
+            self.data_dict[date]["cum_liq_rank"] < top + 1
+        ].set_index("symbol")
+
+    def post_processing(self, alpha: pd.DataFrame) -> pd.DataFrame:
+        alpha = self.neutralization(alpha)
+        alpha = self.normalization(alpha)
+        return alpha
+
+    def neutralization(self, alpha: pd.DataFrame) -> pd.DataFrame:
+        by_what = self.settings.get("neutralization", "Market").lower()
+        # only handle by market
+        # if by_what == "market":
+        return alpha - alpha.mean()
+
+    def normalization(self, alpha: pd.DataFrame) -> pd.DataFrame:
+        # scale to unsign sum to 1
+        return alpha / alpha.abs().sum()
+
+    def simulate(self, f: function) -> None:
+        for date in self.date_list:
+            data_by_day = self.pre_processing(date)
+            alpha = f(data_by_day, self.df)
+            alpha = self.post_processing(alpha)
+            print(alpha)
+            break
+        
 
 
 if __name__ == "__main__":
