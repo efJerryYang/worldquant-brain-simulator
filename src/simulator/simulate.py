@@ -2,6 +2,7 @@ from fast_expression import *
 from database import *
 import yaml
 import timeit
+import matplotlib.pyplot as plt
 
 from typing import Tuple, Dict, List, Callable
 from alpha101 import *
@@ -23,6 +24,8 @@ def set_date_range(settings: dict) -> Tuple[str, str]:
         ts_end = "1677600000000"  # cheating, use 2023-03-01
     elif settings.get("sample") == "insample":
         ts_end = "1614528000000"  # insample 2021-03-01
+    elif settings.get("sample") == "test":
+        ts_end = "1480521600000"  # test 2016-12-01
     else:
         print("[WARNING] No sample setting, use insample by default.")
         ts_end = "1614528000000"  # insample 2021-03-01
@@ -77,6 +80,7 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
     """
     # Data preprocessing
     df["amount"].replace(0, np.nan, inplace=True)
+    # df["amount"].interpolate(method="linear", inplace=True)
     df["amount"].fillna(
         df.groupby("symbol")["amount"].transform(
             lambda x: x.rolling(window=10, min_periods=1).mean()
@@ -91,6 +95,9 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
     # df["cum_typical_price"] = (
     #     df.groupby("symbol").amount.cumsum() / df["amount"] * df["typical_price"]
     # )
+    # Optimization:
+    # df['cumulative_volume'] = df.groupby('symbol')['volume'].cumsum()
+    # df['cumulative_amount_times_volume'] = df.groupby('symbol')['amount'].cumsum() / df['amount'] * df['volume']
 
     # # Cumulative Factor#3 volume weighted average price
     # df["vwap"] = df["cum_typical_price"] / df["cum_volume"]
@@ -134,7 +141,7 @@ def group_data_by_date(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def filter_invalid_timestamp_ms(df: pd.DataFrame, inplace=True) -> None:
-    # if the valid agg count of symbol is lower than 200, drop the grouped timestamp_ms
+    # If the valid agg count of symbol is lower than 200, drop the grouped timestamp_ms
     ts_list = df.groupby("timestamp_ms").agg({"symbol": "count"})
     ts_list = ts_list[ts_list["symbol"] < 200].index
     df.drop(df[df["timestamp_ms"].isin(ts_list)].index, inplace=True)
@@ -146,10 +153,27 @@ def create_date_column(df: pd.DataFrame, inplace=True) -> None:
 
 
 def rank_universe(df: pd.DataFrame, inplace=True) -> None:
+    direct_start = timeit.default_timer()
     compute_direct_factors(df)
+    direct_end = timeit.default_timer()
+    print(f"Compute direct factors in {direct_end - direct_start:.2f} seconds.")
+
+    cumulative_start = timeit.default_timer()
     compute_cumulative_factors(df)
+    cumulative_end = timeit.default_timer()
+    print(
+        f"Compute cumulative factors in {cumulative_end - cumulative_start:.2f} seconds."
+    )
+
+    filter_start = timeit.default_timer()
     filter_invalid_timestamp_ms(df)
+    filter_end = timeit.default_timer()
+    print(f"Filter invalid timestamp_ms in {filter_end - filter_start:.2f} seconds.")
+
+    rank_start = timeit.default_timer()
     compute_cum_liq_rank(df)
+    rank_end = timeit.default_timer()
+    print(f"Compute cumulative liquidity rank in {rank_end - rank_start:.2f} seconds.")
 
 
 def prepare_data(settings: dict) -> pd.DataFrame:
@@ -171,6 +195,8 @@ def prepare_data(settings: dict) -> pd.DataFrame:
     rank_universe(df)
     rank_end = timeit.default_timer()
     print(f"Rank stocks in universe in {rank_end - rank_start:.2f} seconds.")
+    # Drop unnecessary columns to save memory
+    df.drop(columns=["timestamp_ms"], inplace=True)
     return df
 
 
@@ -197,9 +223,10 @@ class Simulator:
 
     def init_data_dict(self) -> Dict[str, pd.DataFrame]:
         d = {}
-        for date, group in self.data_groupby_date:
-            d[str(date)] = group.set_index("symbol", drop=True)
-        return d
+        return {
+            str(date): group.set_index("symbol", drop=True)
+            for date, group in self.data_groupby_date
+        }
 
     def pre_processing(self, date: str) -> List[str]:
         return self.filter_by_universe(date)
@@ -213,49 +240,47 @@ class Simulator:
         else:
             top = 3000
             print("Invalid universe setting, use default value 3000.")
-        return self.data_dict[prev_day][
-            self.data_dict[prev_day]["cum_liq_rank"] < top + 1
-        ].index.tolist()
+        day_data = self.data_dict[prev_day]
+        day_data = day_data[day_data["cum_liq_rank"] < top + 1]
+        return day_data.index.tolist()
 
     def post_processing(self, alpha: pd.DataFrame) -> pd.DataFrame:
         """
         Neutralization and normalization to get the final weights.
         """
-        alpha = self.neutralization(alpha)
-        alpha = self.truncation(alpha)
-        alpha = self.normalization(alpha)
-        return alpha
-
-    def neutralization(self, alpha: pd.DataFrame) -> pd.DataFrame:
+        # Neutralization
         by_what = self.settings.get("neutralization", "Market").lower()
-        # only handle by market
-        # if by_what == "market":
-        return alpha - alpha.mean()
+        alpha = alpha - alpha.mean()
 
-    def normalization(self, alpha: pd.DataFrame) -> pd.DataFrame:
-        # scale to unsign sum to 1
-        return alpha / alpha.abs().sum()
+        # Truncation
+        boundary = self.settings.get("truncation", 0.1)
+        alpha = alpha.clip(-boundary, boundary)
 
-    def truncation(self, alpha: pd.DataFrame) -> pd.DataFrame:
-        boundary = self.settings.get("truncation", 0.10)
-        return alpha.clip(-boundary, boundary)
+        # Normalization
+        alpha = alpha / alpha.abs().sum()
+
+        return alpha
 
     def simulate(self, f: Callable) -> None:
         total = 0
-        for prev_day in self.date_list[:-1]:
+        PnL = []
+        for prev_day, today in zip(self.date_list[:-1], self.date_list[1:]):
             if prev_day < "2016-03-01":
                 continue
             universe = self.pre_processing(prev_day)
             alpha = f(prev_day, universe, self.df)
             alpha = self.post_processing(alpha)
-            profit_pct = self.compute_profit_pct(prev_day, alpha)
+            profit_pct = self.compute_profit_pct(today, alpha)
             profit = profit_pct * self.booksize
             total += profit
-            today = self.date_list[self.date_list.index(prev_day) + 1]
+            PnL.append(total)
             print(f"{today}: {profit:.2f}, total: {total:.2f}")
+        # fig size 4000 * 1500
+        plt.figure(figsize=(40, 15))
+        plt.plot(PnL)
+        plt.savefig(f"tmp_PnL_{pd.Timestamp.now():%Y-%m-%d %H:%M:%S}.png")
 
-    def compute_profit_pct(self, prev_day: str, alpha: pd.DataFrame) -> float:
-        today = self.date_list[self.date_list.index(prev_day) + 1]
+    def compute_profit_pct(self, today: str, alpha: pd.DataFrame) -> float:
         returns = self.data_dict[today]["returns"].reindex(alpha.index)
         return (alpha * returns).sum()
 
