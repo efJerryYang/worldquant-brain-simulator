@@ -126,8 +126,10 @@ def delta(df: pd.DataFrame, period=1) -> pd.DataFrame:
     """
     return df.diff(period)
 
+
 def ts_delta(df: pd.DataFrame, period=1) -> pd.DataFrame:
     return delta(df, period)
+
 
 def delay(df: pd.DataFrame, period=1) -> pd.DataFrame:
     """
@@ -149,9 +151,9 @@ def rank(df: pd.DataFrame, rate=2) -> pd.DataFrame:
     if df.shape[0] == 1:
         return df.rank()
     # Official Description:
-    # The Rank operator ranks the value of the input data x for the given stock 
-    # among all instruments, and returns float numbers equally distributed 
-    # between 0.0 and 1.0. When rate is set to 0, the sorting is done precisely. 
+    # The Rank operator ranks the value of the input data x for the given stock
+    # among all instruments, and returns float numbers equally distributed
+    # between 0.0 and 1.0. When rate is set to 0, the sorting is done precisely.
     # The default value of rate is 2.
     # https://platform.worldquantbrain.com/learn/data-and-operators/detailed-operator-descriptions#23-rankx-rate2
     return (df.rank() - 1.0) / (df.shape[0] - 1)
