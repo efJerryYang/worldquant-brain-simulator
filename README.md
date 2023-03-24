@@ -4,6 +4,30 @@
 
 This is a simulator to help with backtesting your alphas offline for platform WorldQuant Brain
 
+## Project Structure
+
+```sh
+worldquant-brain-simulator/
+|-- alpha
+|-- data
+|   |-- stock_snowball_us.db
+|   `-- stock_snowball_us_full.db.tar.gz
+|-- history
+|-- LICENSE
+|-- README.md
+|-- requirements.txt
+|-- src
+|   `-- simulator
+|       |-- alpha101.py
+|       |-- database.py
+|       |-- expression.py
+|       |-- fetch.py
+|       |-- __init__.py
+|       |-- settings.yaml
+|       `-- simulate.py
+`-- test
+```
+
 ## Todos
 
 - [ ] Too slow, is it possible for Python to be faster?
