@@ -4,9 +4,19 @@ import yaml
 import timeit
 import matplotlib.pyplot as plt
 import multiprocessing
-
 from typing import Tuple, Dict, List, Callable
 from alpha101 import *
+
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+console_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+)
+logger.addHandler(console_handler)
 
 
 def load_settings() -> dict:
@@ -27,7 +37,7 @@ def set_date_range(settings: dict) -> Tuple[str, str]:
         ts_end = "1614528000000"  # insample 2021-03-01
     elif settings.get("sample") == "test":
         # ts_end = "1480521600000"  # test 2016-12-01
-        ts_end = "1464710400000" # test 2016-06-01
+        ts_end = "1464710400000"  # test 2016-06-01
     else:
         print("[WARNING] No sample setting, use insample by default.")
         ts_end = "1614528000000"  # insample 2021-03-01
@@ -64,7 +74,6 @@ def filter_type(df: pd.DataFrame, type: str, inplace=True):
 
 
 def compute_direct_factors(df: pd.DataFrame, inplace=True) -> None:
-
     df["typical_price"] = (df["high"] + df["low"] + df["close"]) / 3
     df["liquidity"] = (df["volume"] * df["close"]).apply(np.log10)
 
@@ -72,7 +81,6 @@ def compute_direct_factors(df: pd.DataFrame, inplace=True) -> None:
 def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
     """
     Compute cumulative factors for each symbol.
-
     Parameters
     ----------
     df : pd.DataFrame
@@ -88,7 +96,6 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
     #         lambda x: x.rolling(window=10, min_periods=1).mean()
     #     ),
     # )
-
     # # Cumulative Factor#1 cumulative volume
     # df["cum_volume"] = (
     #     df.groupby("symbol").amount.cumsum() / df["amount"] * df["volume"]
@@ -100,11 +107,9 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
     # Optimization:
     # df['cumulative_volume'] = df.groupby('symbol')['volume'].cumsum()
     # df['cumulative_amount_times_volume'] = df.groupby('symbol')['amount'].cumsum() / df['amount'] * df['volume']
-
     # # Cumulative Factor#3 volume weighted average price
     # df["vwap"] = df["cum_typical_price"] / df["cum_volume"]
     df["vwap"] = df["amount"] / df["volume"]
-
     # Cumulative Factor#4 cumulative liquidity
     # cum by symbol in 90 days
     # df["cumulative_liq"] = df["liquidity"].cumsum()
@@ -159,19 +164,16 @@ def rank_universe(df: pd.DataFrame, inplace=True) -> None:
     compute_direct_factors(df)
     direct_end = timeit.default_timer()
     print(f"Compute direct factors in {direct_end - direct_start:.2f} seconds.")
-
     cumulative_start = timeit.default_timer()
     compute_cumulative_factors(df)
     cumulative_end = timeit.default_timer()
     print(
         f"Compute cumulative factors in {cumulative_end - cumulative_start:.2f} seconds."
     )
-
     filter_start = timeit.default_timer()
     filter_invalid_timestamp_ms(df)
     filter_end = timeit.default_timer()
     print(f"Filter invalid timestamp_ms in {filter_end - filter_start:.2f} seconds.")
-
     rank_start = timeit.default_timer()
     compute_cum_liq_rank(df)
     rank_end = timeit.default_timer()
@@ -180,19 +182,15 @@ def rank_universe(df: pd.DataFrame, inplace=True) -> None:
 
 def prepare_data(settings: dict) -> pd.DataFrame:
     ts_start, ts_end = set_date_range(settings)
-
     load_start = timeit.default_timer()
     df = load_data_(ts_start, ts_end)
     load_end = timeit.default_timer()
     print(f"Load data in {load_end - load_start:.2f} seconds.")
-
     filter_region(df, settings.get("region", "USA").upper())
     filter_type(df, settings.get("instrument-type", "Equity").capitalize())
-
     create_date_column(df)
     print(f"Date range: {df['date'].min()} to {df['date'].max()}")
     # print(df[df["date"] == pd.Timestamp("2021-02-26").date()])
-
     rank_start = timeit.default_timer()
     rank_universe(df)
     rank_end = timeit.default_timer()
@@ -214,6 +212,8 @@ def simulate():
 
 
 class Simulator:
+    booksize = 20_000_000  # should not change
+
     def __init__(self) -> None:
         self.settings = load_settings()
         self.booksize = 20_000_000  # should not change
@@ -230,32 +230,34 @@ class Simulator:
             for date, group in self.data_groupby_date
         }
 
-    def pre_processing(self, prev_day: str) -> List[str]:
-        return self.filter_by_universe(prev_day)
+    def pre_processing(prev_day: str) -> List[str]:
+        return Simulator.filter_by_universe(prev_day)
 
-    def filter_by_universe(self, prev_day: str) -> List[str]:
+    @staticmethod
+    def filter_by_universe(settings, data_dict: Dict, prev_day: str) -> List[str]:
         # universe: Top3000 # Top1000, Top500, Top200
         # parse the digit from string, regardless of the letter in the string
-        top = self.settings.get("universe", "top3000").lower().strip("top")
+        top = settings.get("universe", "top3000").lower().strip("top")
         if top.isdigit():
             top = int(top)
         else:
             top = 3000
             print("Invalid universe setting, use default value 3000.")
-        day_data = self.data_dict[prev_day]
+        day_data = data_dict[prev_day]
         day_data = day_data[day_data["cum_liq_rank"] < top + 1]
         return day_data.index.tolist()
 
-    def post_processing(self, alpha: pd.DataFrame) -> pd.DataFrame:
+    @staticmethod
+    def post_processing(settings, alpha: pd.DataFrame) -> pd.DataFrame:
         """
         Neutralization and normalization to get the final weights.
         """
         # Neutralization
-        by_what = self.settings.get("neutralization", "Market").lower()
+        by_what = settings.get("neutralization", "Market").lower()
         alpha = alpha - alpha.mean()
 
         # Truncation
-        boundary = self.settings.get("truncation", 0.1)
+        boundary = settings.get("truncation", 0.1)
         alpha = alpha.clip(-boundary, boundary)
 
         # Normalization
@@ -283,52 +285,61 @@ class Simulator:
         plt.plot(PnL)
         plt.savefig(f"tmp_PnL_{pd.Timestamp.now():%Y-%m-%d_%H:%M:%S}.png")
 
-    def process_day(self, prev_day: str, today: str, f: Callable):
+    @staticmethod
+    def process_day(
+        settings: Dict,
+        df: pd.DataFrame,
+        data_dict: Dict,
+        prev_day: str,
+        today: str,
+        f: Callable,
+    ):
+        logger.debug(f"Processing {today}...")
         if prev_day < "2016-03-01":
             return None
-        # universe = self.pre_processing(prev_day)
-        universe = self.filter_by_universe(prev_day)
-        alpha = f(prev_day, universe, self.df)
-        alpha = self.post_processing(alpha)
-        profit_pct = self.compute_profit_pct(today, alpha)
-        profit = profit_pct * self.booksize
-        print(f"{today}: {profit:.2f}")
+        # universe = Simulator.pre_processing(prev_day)
+        universe = Simulator.filter_by_universe(settings, data_dict, prev_day)
+        alpha = f(prev_day, universe, df)
+        alpha = Simulator.post_processing(settings, alpha)
+        profit_pct = Simulator.compute_profit_pct(data_dict, today, alpha)
+        profit = profit_pct * Simulator.booksize
+        logger.debug(f"{today}: {profit:.2%}")
         return profit
 
     def simulate_with_multiprocessing(self, f: Callable) -> None:
         total = 0
         PnL = []
         results = []
-
         # Use all available cores
         num_processes = multiprocessing.cpu_count()
-
         # Split the date range into chunks
         chunks = [
             self.date_list[i : i + num_processes]
             for i in range(0, len(self.date_list), num_processes)
         ]
         multiprocessing_start = timeit.default_timer()
+        pool = multiprocessing.Pool(processes=num_processes)
         for chunk in chunks:
-            pool = multiprocessing.Pool(processes=num_processes)
             process_args = [
-                (prev_day, today, f)
+                (self.settings, self.df, self.data_dict, prev_day, today, f)
                 for prev_day, today, in zip(chunk[:-1], chunk[1:])
             ]
-            process_results = pool.starmap(self.process_day, process_args)
+            process_results = pool.starmap(Simulator.process_day, process_args)
             results.extend([r for r in process_results if r is not None])
-            pool.close()
-            pool.join()
+        pool.close()
+        pool.join()
         multiprocessing_end = timeit.default_timer()
-        print(f"Multiprocessing in {multiprocessing_end - multiprocessing_start:.2f} seconds.")
+        print(
+            f"Multiprocessing in {multiprocessing_end - multiprocessing_start:.2f} seconds."
+        )
         PnL = [
             sum(results[: i + 1]) for i in range(len(results))
         ]  # cumulative sum of results
         self.post_simulation(PnL)
 
-
-    def compute_profit_pct(self, today: str, alpha: pd.DataFrame) -> float:
-        returns = self.data_dict[today]["returns"].reindex(alpha.index)
+    @staticmethod
+    def compute_profit_pct(data_dict: Dict, today: str, alpha: pd.DataFrame) -> float:
+        returns = data_dict[today]["returns"].reindex(alpha.index)
         return (alpha * returns).sum()
 
 
@@ -344,5 +355,5 @@ def example_alpha(prev_day: str, universe: List[str], df: pd.DataFrame) -> pd.Da
 
 if __name__ == "__main__":
     s = Simulator()
-    s.simulate(example_alpha)
-    # s.simulate_with_multiprocessing(example_alpha)
+    # s.simulate(example_alpha)
+    s.simulate_with_multiprocessing(example_alpha)
