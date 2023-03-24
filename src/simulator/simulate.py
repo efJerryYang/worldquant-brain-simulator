@@ -188,6 +188,8 @@ def simulate():
 class Simulator:
     def __init__(self) -> None:
         self.settings = load_settings()
+        self.booksize = 20_000_000
+        ts_start, ts_end = set_date_range(self.settings)
         self.df = prepare_data(self.settings)
         self.data_groupby_date = self.df.groupby("date")
         self.data_dict = self.init_data_dict()
@@ -218,6 +220,9 @@ class Simulator:
         )
 
     def post_processing(self, alpha: pd.DataFrame) -> pd.DataFrame:
+        """
+        Neutralization and normalization to get the final weights.
+        """
         alpha = self.neutralization(alpha)
         alpha = self.normalization(alpha)
         return alpha
@@ -233,31 +238,35 @@ class Simulator:
         return alpha / alpha.abs().sum()
 
     def simulate(self, f: Callable) -> None:
-        for date in self.date_list:
+        total = 0
+        for date in self.date_list[:-1]:
             if date < "2016-03-01":
                 continue
             universe = self.pre_processing(date)
             alpha = f(date, universe, self.df)
             alpha = self.post_processing(alpha)
-            print(alpha)
-            break
+            earning = self.get_earning(date, alpha)
+            total += earning
+            print(f"{date}: {earning:.2f}, total: {total:.2f}")
+
+    def get_earning(self, date: str, alpha: pd.DataFrame) -> float:
+        next_day = self.date_list[self.date_list.index(date) + 1]
+        returns = (
+            self.data_dict[next_day].set_index("symbol")["returns"].loc[alpha.index]
+        )
+        return (alpha * returns).sum() * self.booksize
 
 
 def example_alpha(date: str, universe: List[str], df: pd.DataFrame) -> pd.DataFrame:
     df = df[df["symbol"].isin(universe)]
-    print(df)
-    print(pd.Timestamp(date).date())
-    df.drop([df["date"] > pd.Timestamp(date).date()], inplace=True)
-
+    df = df[df["date"] <= pd.Timestamp(date).date()]
     close = df.pivot(index="date", columns="symbol", values="close")
     volume = df.pivot(index="date", columns="symbol", values="volume")
     df = -rank(ts_delta(close, 2)) * rank(volume / ts_sum(volume, 30) / 30)
-    return df[df["date"] == pd.Timestamp(date).date()]
+    df = df.loc[pd.Timestamp(date).date()]
+    return df
 
 
-# if __name__ == "__main__":
-
-# def func(data_by_day, df):
-#     return data_by_day["close"]
-
-# simulate(func)
+if __name__ == "__main__":
+    s = Simulator()
+    s.simulate(example_alpha)
