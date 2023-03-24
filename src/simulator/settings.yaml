@@ -8,4 +8,4 @@ truncation: 0.05 # <= 0.1
 pasteurization: True # True or False
 unit-handling: verify # No usage
 nan-handling: False # True or False
-sample: test # insample # insample, outsample, latest
+sample: insample # test insample # insample, outsample, latest

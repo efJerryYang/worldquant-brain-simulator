@@ -80,12 +80,12 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
     """
     # Data preprocessing
     df["amount"].replace(0, np.nan, inplace=True)
-    # df["amount"].interpolate(method="linear", inplace=True)
-    df["amount"].fillna(
-        df.groupby("symbol")["amount"].transform(
-            lambda x: x.rolling(window=10, min_periods=1).mean()
-        ),
-    )
+    df["amount"].interpolate(method="linear", inplace=True)
+    # df["amount"].fillna(
+    #     df.groupby("symbol")["amount"].transform(
+    #         lambda x: x.rolling(window=10, min_periods=1).mean()
+    #     ),
+    # )
 
     # # Cumulative Factor#1 cumulative volume
     # df["cum_volume"] = (
@@ -228,8 +228,8 @@ class Simulator:
             for date, group in self.data_groupby_date
         }
 
-    def pre_processing(self, date: str) -> List[str]:
-        return self.filter_by_universe(date)
+    def pre_processing(self, prev_day: str) -> List[str]:
+        return self.filter_by_universe(prev_day)
 
     def filter_by_universe(self, prev_day: str) -> List[str]:
         # universe: Top3000 # Top1000, Top500, Top200
@@ -267,7 +267,8 @@ class Simulator:
         for prev_day, today in zip(self.date_list[:-1], self.date_list[1:]):
             if prev_day < "2016-03-01":
                 continue
-            universe = self.pre_processing(prev_day)
+            # universe = self.pre_processing(prev_day)
+            universe = self.filter_by_universe(prev_day)
             alpha = f(prev_day, universe, self.df)
             alpha = self.post_processing(alpha)
             profit_pct = self.compute_profit_pct(today, alpha)
