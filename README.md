@@ -1,5 +1,6 @@
 # WorldQuant BRAIN Simulator
 
+> **Help Wanted**: See issue [#3](https://github.com/efJerryYang/worldquant-brain-simulator/issues/3) for more details.
 ## Introduction
 
 This is a simulator to help with backtesting your alphas offline for platform WorldQuant Brain
@@ -32,7 +33,7 @@ worldquant-brain-simulator/
 
 - [ ] Too slow, is it possible for Python to be faster?
 
-- [x] Examine the data => There are truly some problem with data from Snowball. Differences detected when computing the `vwap`.
+- [x] Examine the data => There are truly some problems with data from Snowball. Differences detected when computing the `vwap`.
 - [ ] Examine the procedure
 - [ ] Examine the fast-expression implementation
 
