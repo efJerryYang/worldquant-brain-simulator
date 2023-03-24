@@ -98,13 +98,13 @@ def get_alpha(df):
 class Alphas(object):
     def __init__(self, df_data):
 
-        self.open = df_data["S_DQ_OPEN"]
-        self.high = df_data["S_DQ_HIGH"]
-        self.low = df_data["S_DQ_LOW"]
-        self.close = df_data["S_DQ_CLOSE"]
-        self.volume = df_data["S_DQ_VOLUME"] * 100
-        self.returns = df_data["S_DQ_PCTCHANGE"]
-        self.vwap = (df_data["S_DQ_AMOUNT"] * 1000) / (df_data["S_DQ_VOLUME"] * 100 + 1)
+        self.open = df_data["open"]
+        self.high = df_data["high"]
+        self.low = df_data["low"]
+        self.close = df_data["close"]
+        self.volume = df_data["volume"]
+        self.returns = df_data["returns"]
+        self.vwap = df_data["vwap"]
 
     # Alpha#1	 (rank(Ts_ArgMax(SignedPower(((returns < 0) ? stddev(returns, 20) : close), 2.), 5)) -0.5)
     def alpha001(self):
