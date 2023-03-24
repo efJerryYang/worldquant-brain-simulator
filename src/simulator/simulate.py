@@ -188,7 +188,7 @@ def simulate():
 class Simulator:
     def __init__(self) -> None:
         self.settings = load_settings()
-        self.booksize = 20_000_000
+        self.booksize = 20_000_000  # should not change
         ts_start, ts_end = set_date_range(self.settings)
         self.df = prepare_data(self.settings)
         self.data_groupby_date = self.df.groupby("date")
@@ -224,6 +224,7 @@ class Simulator:
         Neutralization and normalization to get the final weights.
         """
         alpha = self.neutralization(alpha)
+        alpha = self.truncation(alpha)
         alpha = self.normalization(alpha)
         return alpha
 
@@ -236,6 +237,10 @@ class Simulator:
     def normalization(self, alpha: pd.DataFrame) -> pd.DataFrame:
         # scale to unsign sum to 1
         return alpha / alpha.abs().sum()
+
+    def truncation(self, alpha: pd.DataFrame) -> pd.DataFrame:
+        boundary = self.settings.get("truncation", 0.10)
+        return alpha.clip(-boundary, boundary)
 
     def simulate(self, f: Callable) -> None:
         total = 0
