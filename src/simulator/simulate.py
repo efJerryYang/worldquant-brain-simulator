@@ -35,7 +35,11 @@ def set_date_range(settings: dict) -> Tuple[str, str]:
     elif settings.get("sample") == "insample":
         ts_end = "1614528000000"  # insample 2021-03-01
     elif settings.get("sample") == "test":
-        ts_end = "1480521600000"  # test 2016-12-01
+        # ts_end = "1582992000000"  # test 2020-03-01
+        # ts_end = "1551369600000"  # test 2019-03-01
+        # ts_end = "1519833600000"  # test 2018-03-01
+        ts_end = "1488297600000"  # test 2017-03-01
+        # ts_end = "1480521600000"  # test 2016-12-01
         # ts_end = "1464710400000"  # test 2016-06-01
     else:
         print("[WARNING] No sample setting, use insample by default.")
@@ -211,8 +215,6 @@ def simulate():
 
 
 class Simulator:
-    booksize = 20_000_000  # should not change
-
     def __init__(self) -> None:
         self.settings = load_settings()
         self.booksize = 20_000_000  # should not change
@@ -229,33 +231,33 @@ class Simulator:
             for date, group in self.data_groupby_date
         }
 
-    def pre_processing(prev_day: str) -> List[str]:
-        return Simulator.filter_by_universe(prev_day)
+    def pre_processing(self, prev_day: str) -> List[str]:
+        return self.filter_by_universe(prev_day)
 
-    @staticmethod
-    def filter_by_universe(settings, data_dict: Dict, prev_day: str) -> List[str]:
+    # @staticmethod
+    def filter_by_universe(self, prev_day: str) -> List[str]:
         # universe: Top3000 # Top1000, Top500, Top200
         # parse the digit from string, regardless of the letter in the string
-        top = settings.get("universe", "top3000").lower().strip("top")
+        top = self.settings.get("universe", "top3000").lower().strip("top")
         if top.isdigit():
             top = int(top)
         else:
             top = 3000
             print("Invalid universe setting, use default value 3000.")
-        day_data = data_dict[prev_day]
+        day_data = self.data_dict[prev_day]
         day_data = day_data[day_data["cum_liq_rank"] < top + 1]
         return day_data.index.tolist()
 
-    @staticmethod
-    def post_processing(settings, alpha: pd.DataFrame) -> pd.DataFrame:
+    # @staticmethod
+    def post_processing(self, alpha: pd.DataFrame) -> pd.DataFrame:
         """
         Neutralization and normalization to get the final weights.
         """
         # Neutralization
-        by_what = settings.get("neutralization", "Market").lower()
+        by_what = s.settings.get("neutralization", "Market").lower()
         alpha = alpha - alpha.mean()
         # Truncation
-        boundary = settings.get("truncation", 0.1)
+        boundary = s.settings.get("truncation", 0.1)
         alpha = alpha.clip(-boundary, boundary)
         # Normalization
         alpha = alpha / alpha.abs().sum()
@@ -293,7 +295,7 @@ class Simulator:
         idx = self.date_list.index(start_date)
         sim_date_list = self.date_list[idx:]
         # Use all available cores
-        num_processes = multiprocessing.cpu_count() // 4
+        num_processes = multiprocessing.cpu_count() // 2
         # # Split the date range into chunks
         chunk_size = len(sim_date_list) // num_processes
         # chunks = [
@@ -314,7 +316,7 @@ class Simulator:
             #     process_results = pool.starmap(process_day, process_args)
             #     results.extend([r for r in process_results])
             process_args = [
-                (self.settings, self.df, self.data_dict, prev_day, today, f)
+                (self, prev_day, today, f)
                 for prev_day, today, in zip(sim_date_list[:-1], sim_date_list[1:])
             ]
             process_results = pool.starmap(
@@ -330,9 +332,9 @@ class Simulator:
         ]  # cumulative sum of results
         self.post_simulation(PnL)
 
-    @staticmethod
-    def compute_profit_pct(data_dict: Dict, today: str, alpha: pd.DataFrame) -> float:
-        returns = data_dict[today]["returns"].reindex(alpha.index)
+    # @staticmethod
+    def compute_profit_pct(self, today: str, alpha: pd.DataFrame) -> float:
+        returns = self.data_dict[today]["returns"].reindex(alpha.index)
         return (alpha * returns).sum()
 
 
@@ -347,9 +349,7 @@ def example_alpha(prev_day: str, universe: List[str], df: pd.DataFrame) -> pd.Da
 
 
 def process_day(
-    settings: Dict,
-    df: pd.DataFrame,
-    data_dict: Dict,
+    simulator: Simulator,
     prev_day: str,
     today: str,
     f: Callable,
@@ -357,12 +357,13 @@ def process_day(
     # logger.debug(f"Processing {today}...")
     # if prev_day < "2016-03-01":
     #     return None
-    # universe = Simulator.pre_processing(prev_day)
-    universe = Simulator.filter_by_universe(settings, data_dict, prev_day)
-    alpha = f(prev_day, universe, df)
-    alpha = Simulator.post_processing(settings, alpha)
-    profit_pct = Simulator.compute_profit_pct(data_dict, today, alpha)
-    profit = profit_pct * Simulator.booksize
+    s = simulator
+    # universe = s.pre_processing(prev_day)
+    universe = s.filter_by_universe(prev_day)
+    alpha = f(prev_day, universe, s.df)
+    alpha = s.post_processing(alpha)
+    profit_pct = s.compute_profit_pct(today, alpha)
+    profit = profit_pct * s.booksize
     logger.debug(f"{today}: {profit:.2f}")
     return profit
 
