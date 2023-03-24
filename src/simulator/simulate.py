@@ -264,8 +264,10 @@ class Simulator:
     def simulate(self, f: Callable) -> None:
         total = 0
         PnL = []
+        start_date = "2016-03-01"
+        idx = self.date_list.index(start_date)
         simulation_start = timeit.default_timer()
-        for prev_day, today in zip(self.date_list[:-1], self.date_list[1:]):
+        for prev_day, today in zip(self.date_list[idx:-1], self.date_list[idx+1:]):
             profit = process_day(
                 self.settings, self.df, self.data_dict, prev_day, today, f
             )
@@ -287,8 +289,10 @@ class Simulator:
         total = 0
         PnL = []
         results = []
+        start_date = "2016-03-01"
+        idx = self.date_list.index(start_date)
         # Use all available cores
-        num_processes = multiprocessing.cpu_count() // 2
+        num_processes = multiprocessing.cpu_count() // 3
         # Split the date range into chunks
         # chunk_size = len(self.date_list) // num_processes
         # chunks = [
@@ -298,7 +302,7 @@ class Simulator:
         # remaining_dates = len(self.date_list) % num_processes
         # if remaining_dates > 0:
         #     chunks[-1].extend(self.date_list[-remaining_dates:])
-        
+
         multiprocessing_start = timeit.default_timer()
         # pool = multiprocessing.Pool(processes=num_processes)
         # for chunk in chunks:
@@ -310,11 +314,13 @@ class Simulator:
         #     results.extend([r for r in process_results if r is not None])
         process_args = [
             (self.settings, self.df, self.data_dict, prev_day, today, f)
-            for prev_day, today, in zip(self.date_list[:-1], self.date_list[1:])
+            for prev_day, today, in zip(
+                self.date_list[idx:-1], self.date_list[1 + idx :]
+            )
         ]
         with multiprocessing.Pool(processes=num_processes) as pool:
             process_results = pool.starmap(process_day, process_args)
-            results.extend([r for r in process_results if r is not None])
+            results.extend([r for r in process_results])
         # pool.close()
         # pool.join()
         multiprocessing_end = timeit.default_timer()
@@ -351,8 +357,8 @@ def process_day(
     f: Callable,
 ):
     # logger.debug(f"Processing {today}...")
-    if prev_day < "2016-03-01":
-        return None
+    # if prev_day < "2016-03-01":
+    #     return None
     # universe = Simulator.pre_processing(prev_day)
     universe = Simulator.filter_by_universe(settings, data_dict, prev_day)
     alpha = f(prev_day, universe, df)
