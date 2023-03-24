@@ -31,7 +31,17 @@ def set_date_range(settings: dict) -> Tuple[str, str]:
 def load_data_(ts_start: str, ts_end: str) -> pd.DataFrame:
     where_stmt = f"timestamp_ms between {ts_start} and {ts_end}"
     df = load_data(
-        ["symbol", "timestamp_ms", "open", "high", "low", "close", "volume"],
+        [
+            "symbol",
+            "timestamp_ms",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "percent as returns",
+            "amount",
+        ],
         "stock_data_US",
         where=where_stmt,
         distinct=False,  # for efficiency, True will be slower by 30%
@@ -47,21 +57,45 @@ def filter_type(df: pd.DataFrame, type: str, inplace=True):
     pass
 
 
-def compute_liquidity(df: pd.DataFrame, inplace=True) -> None:
+def compute_direct_factors(df: pd.DataFrame, inplace=True) -> None:
+
+    df["typical_price"] = (df["high"] + df["low"] + df["close"]) / 3
     df["liquidity"] = (df["volume"] * df["close"]).apply(np.log10)
 
 
-def compute_cumulative_liq(df: pd.DataFrame, inplace=True) -> None:
+def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
     """
-    Compute cumulative liquidity for each symbol in 90 days.
+    Compute cumulative factors for each symbol.
 
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame with columns "symbol", "timestamp_ms", "liquidity"
+        DataFrame with columns "symbol", "timestamp_ms",
     inplace : bool, optional
         Whether to modify df in place, by default True
     """
+    # Data preprocessing
+    df["amount"].replace(0, np.nan, inplace=True)
+    df["amount"].fillna(
+        df.groupby("symbol")["amount"].transform(
+            lambda x: x.rolling(window=10, min_periods=1).mean()
+        ),
+    )
+
+    # # Cumulative Factor#1 cumulative volume
+    # df["cum_volume"] = (
+    #     df.groupby("symbol").amount.cumsum() / df["amount"] * df["volume"]
+    # )
+    # # Cumulative Factor#2 cumulative typical price
+    # df["cum_typical_price"] = (
+    #     df.groupby("symbol").amount.cumsum() / df["amount"] * df["typical_price"]
+    # )
+
+    # # Cumulative Factor#3 volume weighted average price
+    # df["vwap"] = df["cum_typical_price"] / df["cum_volume"]
+    df["vwap"] = df["amount"] / df["volume"]
+
+    # Cumulative Factor#4 cumulative liquidity
     # cum by symbol in 90 days
     # df["cumulative_liq"] = df["liquidity"].cumsum()
     df.sort_values(by=["symbol", "timestamp_ms"], inplace=True)
@@ -111,8 +145,8 @@ def create_dates_column(df: pd.DataFrame, inplace=True) -> None:
 
 
 def rank_universe(df: pd.DataFrame, inplace=True) -> None:
-    compute_liquidity(df)
-    compute_cumulative_liq(df)
+    compute_direct_factors(df)
+    compute_cumulative_factors(df)
     filter_invalid_timestamp_ms(df)
     compute_cum_liq_rank(df)
 
@@ -142,7 +176,10 @@ def prepare_data(settings: dict) -> pd.DataFrame:
 def simulate():
     settings = load_settings()
     df = prepare_data(settings)
-    print(df)
+    # print(df)
+    print(df[df["dates"] == pd.Timestamp("2015-10-12").date()].iloc[0:30, :])
+    # print(df[df["dates"] == pd.Timestamp("2021-02-26").date()])
+
     print("Done")
 
 
