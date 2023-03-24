@@ -8,7 +8,7 @@ from numpy import sign
 from fast_expression import *
 
 
-def get_alpha(df):
+def get_alpha(df: pd.DataFrame) -> pd.DataFrame:
     stock = Alphas(df)
     df["alpha001"] = stock.alpha001()
     df["alpha002"] = stock.alpha002()

@@ -4,6 +4,7 @@ import yaml
 import timeit
 
 from typing import Tuple, Dict, List
+from alpha101 import *
 
 
 def load_settings() -> dict:
@@ -114,12 +115,12 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
 
 
 def compute_cum_liq_rank(df: pd.DataFrame, inplace=True) -> None:
-    df.sort_values(
-        by=["dates", "cumulative_liq"], inplace=True, ascending=[True, False]
-    )
-    df["cum_liq_rank"] = df.groupby("dates")["cumulative_liq"].rank(
-        ascending=False, method="dense"
-    )
+    df.sort_values(by=["date", "cumulative_liq"], inplace=True, ascending=[True, False])
+    df["cum_liq_rank"] = (
+        df.groupby("date")["cumulative_liq"]
+        .rank(ascending=False, method="dense")
+        .apply(np.int32)
+    )  # set datatype to int
 
 
 def group_data_by_date(df: pd.DataFrame) -> pd.DataFrame:
@@ -140,8 +141,8 @@ def filter_invalid_timestamp_ms(df: pd.DataFrame, inplace=True) -> None:
     df.reset_index(drop=True, inplace=True)
 
 
-def create_dates_column(df: pd.DataFrame, inplace=True) -> None:
-    df["dates"] = pd.to_datetime(df["timestamp_ms"], unit="ms").dt.date
+def create_date_column(df: pd.DataFrame, inplace=True) -> None:
+    df["date"] = pd.to_datetime(df["timestamp_ms"], unit="ms").dt.date
 
 
 def rank_universe(df: pd.DataFrame, inplace=True) -> None:
@@ -162,9 +163,9 @@ def prepare_data(settings: dict) -> pd.DataFrame:
     filter_region(df, settings.get("region", "USA").upper())
     filter_type(df, settings.get("instrument-type", "Equity").capitalize())
 
-    create_dates_column(df)
-    print(f"Date range: {df['dates'].min()} to {df['dates'].max()}")
-    # print(df[df["dates"] == pd.Timestamp("2021-02-26").date()])
+    create_date_column(df)
+    print(f"Date range: {df['date'].min()} to {df['date'].max()}")
+    # print(df[df["date"] == pd.Timestamp("2021-02-26").date()])
 
     rank_start = timeit.default_timer()
     rank_universe(df)
@@ -177,10 +178,39 @@ def simulate():
     settings = load_settings()
     df = prepare_data(settings)
     # print(df)
-    print(df[df["dates"] == pd.Timestamp("2015-10-12").date()].iloc[0:30, :])
-    # print(df[df["dates"] == pd.Timestamp("2021-02-26").date()])
-
+    print(df[df["date"] == pd.Timestamp("2015-10-12").date()].iloc[0:30, :])
+    # print(df[df["date"] == pd.Timestamp("2021-02-26").date()])
+    alpha = Alphas(df)
+    print(alpha)
     print("Done")
+
+
+class Simulator:
+    def __init__(self) -> None:
+        self.settings = load_settings()
+        self.df = prepare_data(self.settings)
+        self.data_groupby_date = self.df.groupby("date")
+        self.data_dict = self.init_data_dict()
+        self.date_list = sorted(self.data_dict.keys())
+
+    def init_data_dict(self) -> Dict[str, pd.DataFrame]:
+        d = {}
+        for date, group in self.data_groupby_date:
+            d[str(date)] = group  # use cum_liq_rank as index
+            # d[str(date)].set_index("cum_liq_rank", inplace=True)
+            # d[str(date)].drop("timestamp_ms", axis=1, inplace=True)
+        return d
+
+    def filter_by_universe(self, date: str) -> pd.DataFrame:
+        # universe: Top3000 # Top1000, Top500, Top200
+        # parse the digit from string, regardless of the letter in the string
+        top = self.settings["universe"].lower().strip("top")
+        if top.isdigit():
+            top = int(top)
+        else:
+            top = 3000
+            print("Invalid universe setting, use default value 3000.")
+        return self.data_dict[date][self.data_dict[date]["cum_liq_rank"] < top + 1]
 
 
 if __name__ == "__main__":
