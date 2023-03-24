@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import rankdata
 
+# Fast expression implementation
+
 
 def ts_sum(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     """
