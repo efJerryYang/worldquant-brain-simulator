@@ -196,15 +196,13 @@ class Simulator:
     def init_data_dict(self) -> Dict[str, pd.DataFrame]:
         d = {}
         for date, group in self.data_groupby_date:
-            d[str(date)] = group  # use cum_liq_rank as index
-            # d[str(date)].set_index("cum_liq_rank", inplace=True)
-            # d[str(date)].drop("timestamp_ms", axis=1, inplace=True)
+            d[str(date)] = group
         return d
 
-    def pre_processing(self, date: str) -> pd.DataFrame:
+    def pre_processing(self, date: str) -> List[str]:
         return self.filter_by_universe(date)
 
-    def filter_by_universe(self, date: str) -> pd.DataFrame:
+    def filter_by_universe(self, date: str) -> List[str]:
         # universe: Top3000 # Top1000, Top500, Top200
         # parse the digit from string, regardless of the letter in the string
         top = self.settings.get("universe", "top3000").lower().strip("top")
@@ -213,9 +211,11 @@ class Simulator:
         else:
             top = 3000
             print("Invalid universe setting, use default value 3000.")
-        return self.data_dict[date][
-            self.data_dict[date]["cum_liq_rank"] < top + 1
-        ].set_index("symbol")
+        return (
+            self.data_dict[date][self.data_dict[date]["cum_liq_rank"] < top + 1]
+            .set_index("symbol")
+            .index.tolist()
+        )
 
     def post_processing(self, alpha: pd.DataFrame) -> pd.DataFrame:
         alpha = self.neutralization(alpha)
@@ -232,15 +232,26 @@ class Simulator:
         # scale to unsign sum to 1
         return alpha / alpha.abs().sum()
 
-    def simulate(self, f: function) -> None:
+    def simulate(self, f) -> None:
         for date in self.date_list:
-            data_by_day = self.pre_processing(date)
-            alpha = f(data_by_day, self.df)
+            if date < "2016-03-01":
+                continue
+            universe = self.pre_processing(date)
+            alpha = f(universe, self.df)
             alpha = self.post_processing(alpha)
             print(alpha)
             break
-        
+
+    def example_alpha(self, universe: List[str], df: pd.DataFrame) -> pd.DataFrame:
+        df = df[df["symbol"].isin(universe)]
+        close = df.pivot(index="date", columns="symbol", values="close")
+        volume = df.pivot(index="date", columns="symbol", values="volume")
+        return -rank(ts_delta(close, 2)) * rank(volume / ts_sum(volume, 30) / 30)
 
 
-if __name__ == "__main__":
-    simulate()
+# if __name__ == "__main__":
+
+# def func(data_by_day, df):
+#     return data_by_day["close"]
+
+# simulate(func)

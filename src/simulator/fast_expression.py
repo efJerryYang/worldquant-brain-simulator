@@ -126,6 +126,8 @@ def delta(df: pd.DataFrame, period=1) -> pd.DataFrame:
     """
     return df.diff(period)
 
+def ts_delta(df: pd.DataFrame, period=1) -> pd.DataFrame:
+    return delta(df, period)
 
 def delay(df: pd.DataFrame, period=1) -> pd.DataFrame:
     """
