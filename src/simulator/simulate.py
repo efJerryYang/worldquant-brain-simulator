@@ -26,7 +26,8 @@ def set_date_range(settings: dict) -> Tuple[str, str]:
     elif settings.get("sample") == "insample":
         ts_end = "1614528000000"  # insample 2021-03-01
     elif settings.get("sample") == "test":
-        ts_end = "1480521600000"  # test 2016-12-01
+        # ts_end = "1480521600000"  # test 2016-12-01
+        ts_end = "1464710400000" # test 2016-06-01
     else:
         print("[WARNING] No sample setting, use insample by default.")
         ts_end = "1614528000000"  # insample 2021-03-01
@@ -265,12 +266,15 @@ class Simulator:
     def simulate(self, f: Callable) -> None:
         total = 0
         PnL = []
+        simulation_start = timeit.default_timer()
         for prev_day, today in zip(self.date_list[:-1], self.date_list[1:]):
             profit = self.process_day(prev_day, today, f)
             if profit is None:
                 continue
             total += profit
             PnL.append(total)
+        simulation_end = timeit.default_timer()
+        print(f"Simulation in {simulation_end - simulation_start:.2f} seconds.")
         self.post_simulation(PnL)
 
     def post_simulation(self, PnL: List[float]) -> None:
@@ -300,13 +304,11 @@ class Simulator:
         num_processes = multiprocessing.cpu_count()
 
         # Split the date range into chunks
-        chuck_start = timeit.default_timer()
         chunks = [
             self.date_list[i : i + num_processes]
             for i in range(0, len(self.date_list), num_processes)
         ]
-        chuck_end = timeit.default_timer()
-        print(f"Split date range into {len(chunks)} chunks in {chuck_end - chuck_start:.2f} seconds.")
+        multiprocessing_start = timeit.default_timer()
         for chunk in chunks:
             pool = multiprocessing.Pool(processes=num_processes)
             process_args = [
@@ -317,7 +319,8 @@ class Simulator:
             results.extend([r for r in process_results if r is not None])
             pool.close()
             pool.join()
-
+        multiprocessing_end = timeit.default_timer()
+        print(f"Multiprocessing in {multiprocessing_end - multiprocessing_start:.2f} seconds.")
         PnL = [
             sum(results[: i + 1]) for i in range(len(results))
         ]  # cumulative sum of results
@@ -341,5 +344,5 @@ def example_alpha(prev_day: str, universe: List[str], df: pd.DataFrame) -> pd.Da
 
 if __name__ == "__main__":
     s = Simulator()
-    # s.simulate(example_alpha)
-    s.simulate_with_multiprocessing(example_alpha)
+    s.simulate(example_alpha)
+    # s.simulate_with_multiprocessing(example_alpha)
