@@ -137,14 +137,22 @@ def delay(df: pd.DataFrame, period=1) -> pd.DataFrame:
     return df.shift(period)
 
 
-def rank(df: pd.DataFrame) -> pd.DataFrame:
+def rank(df: pd.DataFrame, rate=2) -> pd.DataFrame:
     """
-    Cross sectional rank
+    Cross sectional rank.
     :param df: a pandas DataFrame.
     :return: a pandas DataFrame with rank along columns.
     """
-    # return df.rank(axis=1, pct=True)
-    return df.rank(pct=True)
+    # if shape[0] = 1, means no need to rank
+    if df.shape[0] == 1:
+        return df.rank()
+    # Official Description:
+    # The Rank operator ranks the value of the input data x for the given stock 
+    # among all instruments, and returns float numbers equally distributed 
+    # between 0.0 and 1.0. When rate is set to 0, the sorting is done precisely. 
+    # The default value of rate is 2.
+    # https://platform.worldquantbrain.com/learn/data-and-operators/detailed-operator-descriptions#23-rankx-rate2
+    return (df.rank() - 1.0) / (df.shape[0] - 1)
 
 
 def scale(df: pd.DataFrame, k=1) -> pd.DataFrame:
