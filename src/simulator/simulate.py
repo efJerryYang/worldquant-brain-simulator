@@ -3,6 +3,7 @@ from database import *
 import yaml
 import timeit
 import matplotlib.pyplot as plt
+import multiprocessing
 
 from typing import Tuple, Dict, List, Callable
 from alpha101 import *
@@ -265,21 +266,63 @@ class Simulator:
         total = 0
         PnL = []
         for prev_day, today in zip(self.date_list[:-1], self.date_list[1:]):
-            if prev_day < "2016-03-01":
+            profit = self.process_day(prev_day, today, f)
+            if profit is None:
                 continue
-            # universe = self.pre_processing(prev_day)
-            universe = self.filter_by_universe(prev_day)
-            alpha = f(prev_day, universe, self.df)
-            alpha = self.post_processing(alpha)
-            profit_pct = self.compute_profit_pct(today, alpha)
-            profit = profit_pct * self.booksize
             total += profit
             PnL.append(total)
-            print(f"{today}: {profit:.2f}, total: {total:.2f}")
+        self.post_simulation(PnL)
+
+    def post_simulation(self, PnL: List[float]) -> None:
         # fig size 4000 * 1500
         plt.figure(figsize=(40, 15))
         plt.plot(PnL)
-        plt.savefig(f"tmp_PnL_{pd.Timestamp.now():%Y-%m-%d %H:%M:%S}.png")
+        plt.savefig(f"tmp_PnL_{pd.Timestamp.now():%Y-%m-%d_%H:%M:%S}.png")
+
+    def process_day(self, prev_day: str, today: str, f: Callable):
+        if prev_day < "2016-03-01":
+            return None
+        # universe = self.pre_processing(prev_day)
+        universe = self.filter_by_universe(prev_day)
+        alpha = f(prev_day, universe, self.df)
+        alpha = self.post_processing(alpha)
+        profit_pct = self.compute_profit_pct(today, alpha)
+        profit = profit_pct * self.booksize
+        print(f"{today}: {profit:.2f}")
+        return profit
+
+    def simulate_with_multiprocessing(self, f: Callable) -> None:
+        total = 0
+        PnL = []
+        results = []
+
+        # Use all available cores
+        num_processes = multiprocessing.cpu_count()
+
+        # Split the date range into chunks
+        chuck_start = timeit.default_timer()
+        chunks = [
+            self.date_list[i : i + num_processes]
+            for i in range(0, len(self.date_list), num_processes)
+        ]
+        chuck_end = timeit.default_timer()
+        print(f"Split date range into {len(chunks)} chunks in {chuck_end - chuck_start:.2f} seconds.")
+        for chunk in chunks:
+            pool = multiprocessing.Pool(processes=num_processes)
+            process_args = [
+                (prev_day, today, f)
+                for prev_day, today, in zip(chunk[:-1], chunk[1:])
+            ]
+            process_results = pool.starmap(self.process_day, process_args)
+            results.extend([r for r in process_results if r is not None])
+            pool.close()
+            pool.join()
+
+        PnL = [
+            sum(results[: i + 1]) for i in range(len(results))
+        ]  # cumulative sum of results
+        self.post_simulation(PnL)
+
 
     def compute_profit_pct(self, today: str, alpha: pd.DataFrame) -> float:
         returns = self.data_dict[today]["returns"].reindex(alpha.index)
@@ -298,4 +341,5 @@ def example_alpha(prev_day: str, universe: List[str], df: pd.DataFrame) -> pd.Da
 
 if __name__ == "__main__":
     s = Simulator()
-    s.simulate(example_alpha)
+    # s.simulate(example_alpha)
+    s.simulate_with_multiprocessing(example_alpha)
