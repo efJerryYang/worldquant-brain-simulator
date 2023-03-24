@@ -3,7 +3,7 @@ from database import *
 import yaml
 import timeit
 
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Callable
 from alpha101 import *
 
 
@@ -232,21 +232,24 @@ class Simulator:
         # scale to unsign sum to 1
         return alpha / alpha.abs().sum()
 
-    def simulate(self, f) -> None:
+    def simulate(self, f: Callable) -> None:
         for date in self.date_list:
             if date < "2016-03-01":
                 continue
             universe = self.pre_processing(date)
-            alpha = f(universe, self.df)
+            alpha = f(date, universe, self.df)
             alpha = self.post_processing(alpha)
             print(alpha)
             break
 
-    def example_alpha(self, universe: List[str], df: pd.DataFrame) -> pd.DataFrame:
-        df = df[df["symbol"].isin(universe)]
-        close = df.pivot(index="date", columns="symbol", values="close")
-        volume = df.pivot(index="date", columns="symbol", values="volume")
-        return -rank(ts_delta(close, 2)) * rank(volume / ts_sum(volume, 30) / 30)
+
+def example_alpha(date: str, universe: List[str], df: pd.DataFrame) -> pd.DataFrame:
+    df = df[df["symbol"].isin(universe)]
+    df = df[df["date"] <= pd.Timestamp(date).date()]
+    close = df.pivot(index="date", columns="symbol", values="close")
+    volume = df.pivot(index="date", columns="symbol", values="volume")
+    df = -rank(ts_delta(close, 2)) * rank(volume / ts_sum(volume, 30) / 30)
+    return df[df["date"] == pd.Timestamp(date).date()]
 
 
 # if __name__ == "__main__":
