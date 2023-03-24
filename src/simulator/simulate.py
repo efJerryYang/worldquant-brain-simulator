@@ -245,7 +245,10 @@ class Simulator:
 
 def example_alpha(date: str, universe: List[str], df: pd.DataFrame) -> pd.DataFrame:
     df = df[df["symbol"].isin(universe)]
-    df = df[df["date"] <= pd.Timestamp(date).date()]
+    print(df)
+    print(pd.Timestamp(date).date())
+    df.drop([df["date"] > pd.Timestamp(date).date()], inplace=True)
+
     close = df.pivot(index="date", columns="symbol", values="close")
     volume = df.pivot(index="date", columns="symbol", values="volume")
     df = -rank(ts_delta(close, 2)) * rank(volume / ts_sum(volume, 30) / 30)
