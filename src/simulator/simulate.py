@@ -198,13 +198,13 @@ class Simulator:
     def init_data_dict(self) -> Dict[str, pd.DataFrame]:
         d = {}
         for date, group in self.data_groupby_date:
-            d[str(date)] = group
+            d[str(date)] = group.set_index("symbol", drop=True)
         return d
 
     def pre_processing(self, date: str) -> List[str]:
         return self.filter_by_universe(date)
 
-    def filter_by_universe(self, date: str) -> List[str]:
+    def filter_by_universe(self, prev_day: str) -> List[str]:
         # universe: Top3000 # Top1000, Top500, Top200
         # parse the digit from string, regardless of the letter in the string
         top = self.settings.get("universe", "top3000").lower().strip("top")
@@ -213,11 +213,9 @@ class Simulator:
         else:
             top = 3000
             print("Invalid universe setting, use default value 3000.")
-        return (
-            self.data_dict[date][self.data_dict[date]["cum_liq_rank"] < top + 1]
-            .set_index("symbol")
-            .index.tolist()
-        )
+        return self.data_dict[prev_day][
+            self.data_dict[prev_day]["cum_liq_rank"] < top + 1
+        ].index.tolist()
 
     def post_processing(self, alpha: pd.DataFrame) -> pd.DataFrame:
         """
@@ -244,31 +242,32 @@ class Simulator:
 
     def simulate(self, f: Callable) -> None:
         total = 0
-        for date in self.date_list[:-1]:
-            if date < "2016-03-01":
+        for prev_day in self.date_list[:-1]:
+            if prev_day < "2016-03-01":
                 continue
-            universe = self.pre_processing(date)
-            alpha = f(date, universe, self.df)
+            universe = self.pre_processing(prev_day)
+            alpha = f(prev_day, universe, self.df)
             alpha = self.post_processing(alpha)
-            earning = self.get_earning(date, alpha)
+            earning = self.get_earning(prev_day, alpha)
             total += earning
-            print(f"{date}: {earning:.2f}, total: {total:.2f}")
+            today = self.date_list[self.date_list.index(prev_day) + 1]
+            print(f"{today}: {earning:.2f}, total: {total:.2f}")
 
-    def get_earning(self, date: str, alpha: pd.DataFrame) -> float:
-        next_day = self.date_list[self.date_list.index(date) + 1]
-        returns = (
-            self.data_dict[next_day].set_index("symbol")["returns"].loc[alpha.index]
-        )
+    def get_earning(self, prev_day: str, alpha: pd.DataFrame) -> float:
+        today = self.date_list[self.date_list.index(prev_day) + 1]
+        returns = self.data_dict[today]["returns"].loc[alpha.index]
         return (alpha * returns).sum() * self.booksize
 
 
-def example_alpha(date: str, universe: List[str], df: pd.DataFrame) -> pd.DataFrame:
+def example_alpha(
+    prev_day: str, universe: List[str], df: pd.DataFrame
+) -> pd.DataFrame:
     df = df[df["symbol"].isin(universe)]
-    df = df[df["date"] <= pd.Timestamp(date).date()]
+    df = df[df["date"] <= pd.Timestamp(prev_day).date()]
     close = df.pivot(index="date", columns="symbol", values="close")
     volume = df.pivot(index="date", columns="symbol", values="volume")
     df = -rank(ts_delta(close, 2)) * rank(volume / ts_sum(volume, 30) / 30)
-    df = df.loc[pd.Timestamp(date).date()]
+    df = df.loc[pd.Timestamp(prev_day).date()]
     return df
 
 
