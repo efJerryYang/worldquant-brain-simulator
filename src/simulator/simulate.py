@@ -35,8 +35,8 @@ def set_date_range(settings: dict) -> Tuple[str, str]:
     elif settings.get("sample") == "insample":
         ts_end = "1614528000000"  # insample 2021-03-01
     elif settings.get("sample") == "test":
-        # ts_end = "1480521600000"  # test 2016-12-01
-        ts_end = "1464710400000"  # test 2016-06-01
+        ts_end = "1480521600000"  # test 2016-12-01
+        # ts_end = "1464710400000"  # test 2016-06-01
     else:
         print("[WARNING] No sample setting, use insample by default.")
         ts_end = "1614528000000"  # insample 2021-03-01
@@ -267,7 +267,7 @@ class Simulator:
         start_date = "2016-03-01"
         idx = self.date_list.index(start_date)
         simulation_start = timeit.default_timer()
-        for prev_day, today in zip(self.date_list[idx:-1], self.date_list[idx+1:]):
+        for prev_day, today in zip(self.date_list[idx:-1], self.date_list[idx + 1 :]):
             profit = process_day(
                 self.settings, self.df, self.data_dict, prev_day, today, f
             )
@@ -295,7 +295,7 @@ class Simulator:
         # Use all available cores
         num_processes = multiprocessing.cpu_count() // 4
         # # Split the date range into chunks
-        # chunk_size = len(sim_date_list) // num_processes
+        chunk_size = len(sim_date_list) // num_processes
         # chunks = [
         #     sim_date_list[i : i + chunk_size]
         #     for i in range(0, len(sim_date_list), chunk_size)
@@ -305,25 +305,22 @@ class Simulator:
         #     chunks[-1].extend(sim_date_list[-remaining_dates:])
 
         multiprocessing_start = timeit.default_timer()
-        # pool = multiprocessing.Pool(processes=num_processes)
-        # for chunk in chunks:
-        #     process_args = [
-        #         (self.settings, self.df, self.data_dict, prev_day, today, f)
-        #         for prev_day, today, in zip(chunk[:-1], chunk[1:])
-        #     ]
-        #     process_results = pool.starmap(process_day, process_args)
-        #     results.extend([r for r in process_results])
-        process_args = [
-            (self.settings, self.df, self.data_dict, prev_day, today, f)
-            for prev_day, today, in zip(
-                sim_date_list[:-1], sim_date_list[1:]
-            )
-        ]
         with multiprocessing.Pool(processes=num_processes) as pool:
-            process_results = pool.starmap(process_day, process_args)
+            # for chunk in chunks:
+            #     process_args = [
+            #         (self.settings, self.df, self.data_dict, prev_day, today, f)
+            #         for prev_day, today, in zip(chunk[:-1], chunk[1:])
+            #     ]
+            #     process_results = pool.starmap(process_day, process_args)
+            #     results.extend([r for r in process_results])
+            process_args = [
+                (self.settings, self.df, self.data_dict, prev_day, today, f)
+                for prev_day, today, in zip(sim_date_list[:-1], sim_date_list[1:])
+            ]
+            process_results = pool.starmap(
+                process_day, process_args, chunksize=chunk_size
+            )
             results.extend([r for r in process_results])
-        # pool.close()
-        # pool.join()
         multiprocessing_end = timeit.default_timer()
         print(
             f"Multiprocessing in {multiprocessing_end - multiprocessing_start:.2f} seconds."
