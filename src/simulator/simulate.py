@@ -248,20 +248,19 @@ class Simulator:
             universe = self.pre_processing(prev_day)
             alpha = f(prev_day, universe, self.df)
             alpha = self.post_processing(alpha)
-            earning = self.get_earning(prev_day, alpha)
-            total += earning
+            profit_pct = self.compute_profit_pct(prev_day, alpha)
+            profit = profit_pct * self.booksize
+            total += profit
             today = self.date_list[self.date_list.index(prev_day) + 1]
-            print(f"{today}: {earning:.2f}, total: {total:.2f}")
+            print(f"{today}: {profit:.2f}, total: {total:.2f}")
 
-    def get_earning(self, prev_day: str, alpha: pd.DataFrame) -> float:
+    def compute_profit_pct(self, prev_day: str, alpha: pd.DataFrame) -> float:
         today = self.date_list[self.date_list.index(prev_day) + 1]
-        returns = self.data_dict[today]["returns"].loc[alpha.index]
-        return (alpha * returns).sum() * self.booksize
+        returns = self.data_dict[today]["returns"].reindex(alpha.index)
+        return (alpha * returns).sum()
 
 
-def example_alpha(
-    prev_day: str, universe: List[str], df: pd.DataFrame
-) -> pd.DataFrame:
+def example_alpha(prev_day: str, universe: List[str], df: pd.DataFrame) -> pd.DataFrame:
     df = df[df["symbol"].isin(universe)]
     df = df[df["date"] <= pd.Timestamp(prev_day).date()]
     close = df.pivot(index="date", columns="symbol", values="close")
