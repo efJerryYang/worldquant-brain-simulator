@@ -13,6 +13,9 @@ This is a simulator to help with backtesting your alphas offline for platform Wo
 - [ ] Add docs to code
 - [ ] Do not use string date
 - [x] Change `date` and `next_day` to `prev_day` and `today`
+- [ ] Truncation correctness (current not necessarily working)
+
+- [x] Implement multiprocessing
 
 ## References
 

@@ -131,3 +131,6 @@ dmypy.json
 data/
 alpha/
 history/
+tmp/
+**/tmp*
+.vscode/
