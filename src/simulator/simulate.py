@@ -291,17 +291,18 @@ class Simulator:
         results = []
         start_date = "2016-03-01"
         idx = self.date_list.index(start_date)
+        sim_date_list = self.date_list[idx:]
         # Use all available cores
-        num_processes = multiprocessing.cpu_count() // 3
-        # Split the date range into chunks
-        # chunk_size = len(self.date_list) // num_processes
+        num_processes = multiprocessing.cpu_count() // 4
+        # # Split the date range into chunks
+        # chunk_size = len(sim_date_list) // num_processes
         # chunks = [
-        #     self.date_list[i : i + chunk_size]
-        #     for i in range(0, len(self.date_list), chunk_size)
+        #     sim_date_list[i : i + chunk_size]
+        #     for i in range(0, len(sim_date_list), chunk_size)
         # ]
-        # remaining_dates = len(self.date_list) % num_processes
+        # remaining_dates = len(sim_date_list) % num_processes
         # if remaining_dates > 0:
-        #     chunks[-1].extend(self.date_list[-remaining_dates:])
+        #     chunks[-1].extend(sim_date_list[-remaining_dates:])
 
         multiprocessing_start = timeit.default_timer()
         # pool = multiprocessing.Pool(processes=num_processes)
@@ -311,11 +312,11 @@ class Simulator:
         #         for prev_day, today, in zip(chunk[:-1], chunk[1:])
         #     ]
         #     process_results = pool.starmap(process_day, process_args)
-        #     results.extend([r for r in process_results if r is not None])
+        #     results.extend([r for r in process_results])
         process_args = [
             (self.settings, self.df, self.data_dict, prev_day, today, f)
             for prev_day, today, in zip(
-                self.date_list[idx:-1], self.date_list[1 + idx :]
+                sim_date_list[:-1], sim_date_list[1:]
             )
         ]
         with multiprocessing.Pool(processes=num_processes) as pool:
