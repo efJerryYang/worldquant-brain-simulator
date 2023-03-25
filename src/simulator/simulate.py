@@ -3,6 +3,7 @@ from database import *
 import yaml
 import timeit
 import matplotlib.pyplot as plt
+from multiprocessing.shared_memory import SharedMemory
 import multiprocessing as mp
 from typing import Tuple, Dict, List, Callable
 from alpha101 import *
@@ -252,12 +253,12 @@ class Simulator:
         # logger.debug(
         #     f"Data Dict: {total_memory} bytes (= {total_memory/1024**3:.2f} GiB)"
         # )
-        self.date_list = sorted(self.data_dict.keys())
+        self.date_list = sorted(self.df.date.unique())
         self.shared_df = self.shared_memory_dataframe(self.df)
         self.shared_data_dict = self.shared_memory_data_dict(self.init_data_dict())
 
     def shared_memory_dataframe(self, df: pd.DataFrame) -> SharedDataFrame:
-        data_buffer = mp.shared_memory.SharedMomory(create=True, size=df.values.nbytes)
+        data_buffer = SharedMemory(create=True, size=df.values.nbytes)
         data_array = np.ndarray(df.shape, dtype=df.values.dtype, buffer=data_buffer.buf)
         data_array[:] = df.values[:]
         return SharedDataFrame(
