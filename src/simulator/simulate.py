@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 from typing import Tuple, Dict, List, Callable
 from alpha101 import *
+import ctypes
 import logging
 
 logger = logging.getLogger(__name__)
@@ -212,6 +213,24 @@ def simulate():
     logger.info("Done")
 
 
+class SharedDataFrame(ctypes.Structure):
+    _fields_ = [
+        ("data", ctypes.POINTER(ctypes.c_double)),
+        ("index", ctypes.POINTER(ctypes.c_char_p)),
+        ("columns", ctypes.POINTER(ctypes.c_char_p)),
+        ("nrows", ctypes.c_int),
+        ("ncols", ctypes.c_int),
+    ]
+
+
+class SharedDataDict(ctypes.Structure):
+    _fields_ = [
+        ("data", ctypes.POINTER(SharedDataFrame)),
+        ("dates", ctypes.POINTER(ctypes.c_char_p)),
+        ("length", ctypes.c_int),
+    ]
+
+
 class Simulator:
     def __init__(self) -> None:
         self.settings = load_settings()
@@ -226,14 +245,70 @@ class Simulator:
             f"DataFrame size: {df_total_memory} bytes (= {df_total_memory/1024**3:.2f} GiB)"
         )
         self.data_groupby_date = self.df.groupby("date")
-        self.data_dict = self.init_data_dict()
-        total_memory = sum(
-            df.memory_usage(deep=True).sum() for df in self.data_dict.values()
-        )
-        logger.debug(
-            f"Data Dict: {total_memory} bytes (= {total_memory/1024**3:.2f} GiB)"
-        )
+        # self.data_dict = self.init_data_dict()
+        # total_memory = sum(
+        #     df.memory_usage(deep=True).sum() for df in self.data_dict.values()
+        # )
+        # logger.debug(
+        #     f"Data Dict: {total_memory} bytes (= {total_memory/1024**3:.2f} GiB)"
+        # )
         self.date_list = sorted(self.data_dict.keys())
+        self.shared_df = self.shared_memory_dataframe(self.df)
+        self.shared_data_dict = self.shared_memory_data_dict(self.init_data_dict())
+
+    def shared_memory_dataframe(self, df: pd.DataFrame) -> SharedDataFrame:
+        data_buffer = mp.shared_memory.SharedMomory(create=True, size=df.values.nbytes)
+        data_array = np.ndarray(df.shape, dtype=df.values.dtype, buffer=data_buffer.buf)
+        data_array[:] = df.values[:]
+        return SharedDataFrame(
+            data=ctypes.cast(data_buffer.buf, ctypes.POINTER(ctypes.c_double)),
+            index=ctypes.cast(id(df.index.values), ctypes.POINTER(ctypes.c_char_p)),
+            columns=ctypes.cast(id(df.columns.values), ctypes.POINTER(ctypes.c_char_p)),
+            nrows=ctypes.c_int(df.shape[0]),
+            ncols=ctypes.c_int(df.shape[1]),
+        )
+
+    def shared_memory_data_dict(
+        self, data_dict: Dict[str, pd.DataFrame]
+    ) -> SharedDataDict:
+        dates = list(data_dict.keys())
+        nrows = data_dict[dates[0]].shape[0]
+        ncols = data_dict[dates[0]].shape[1]
+        data_array = []
+        for date in dates:
+            data_array.append(self.shared_memory_dataframe(data_dict[date]))
+        return SharedDataDict(
+            data=(SharedDataFrame * len(dates))(*data_array),
+            dates=ctypes.cast(id(dates), ctypes.POINTER(ctypes.c_char_p)),
+            length=ctypes.c_int(len(dates)),
+        )
+
+    def cast_shared_data(self, shared_dataframe: SharedDataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            np.ctypeslib.as_array(
+                shared_dataframe.data,
+                shape=(shared_dataframe.nrows.value, shared_dataframe.ncols.value),
+            ),
+            index=np.ctypeslib.as_array(
+                shared_dataframe.index, shape=(shared_dataframe.nrows.value,)
+            ),
+            columns=np.ctypeslib.as_array(
+                shared_dataframe.columns, shape=(shared_dataframe.ncols.value,)
+            ),
+        )
+
+    def cast_shared_data_dict(
+        self, shared_data_dict: SharedDataDict
+    ) -> Dict[str, pd.DataFrame]:
+        dates = np.ctypeslib.as_array(
+            shared_data_dict.dates, shape=(shared_data_dict.length.value,)
+        )
+        data_dict = {}
+        for i in range(shared_data_dict):
+            data_dict[dates[i].decode()] = self.cast_shared_data(
+                shared_data_dict.data[i]
+            )
+        return data_dict
 
     def init_data_dict(self) -> Dict[str, pd.DataFrame]:
         return {
@@ -241,11 +316,15 @@ class Simulator:
             for date, group in self.data_groupby_date
         }
 
-    def pre_processing(self, prev_day: str) -> List[str]:
-        return self.filter_by_universe(prev_day)
+    def pre_processing(
+        self, data_dict: Dict[str, pd.DataFrame], prev_day: str
+    ) -> List[str]:
+        return self.filter_by_universe(data_dict, prev_day)
 
     # @staticmethod
-    def filter_by_universe(self, prev_day: str) -> List[str]:
+    def filter_by_universe(
+        self, data_dict: Dict[str, pd.DataFrame], prev_day: str
+    ) -> List[str]:
         # universe: Top3000 # Top1000, Top500, Top200
         # parse the digit from string, regardless of the letter in the string
         top = self.settings.get("universe", "top3000").lower().strip("top")
@@ -254,7 +333,7 @@ class Simulator:
         else:
             top = 3000
             logger.warning("Invalid universe setting, use default value 3000.")
-        day_data = self.data_dict[prev_day]
+        day_data = data_dict[prev_day]
         day_data = day_data[day_data["cum_liq_rank"] < top + 1]
         return day_data.index.tolist()
 
@@ -324,8 +403,10 @@ class Simulator:
         self.post_simulation(PnL)
 
     # @staticmethod
-    def compute_profit_pct(self, today: str, alpha: pd.DataFrame) -> float:
-        returns = self.data_dict[today]["returns"].reindex(alpha.index)
+    def compute_profit_pct(
+        self, data_dict: Dict[str, pd.DataFrame], today: str, alpha: pd.DataFrame
+    ) -> float:
+        returns = data_dict[today]["returns"].reindex(alpha.index)
         return (alpha * returns).sum()
 
 
@@ -346,11 +427,14 @@ def process_day(
     f: Callable,
 ):
     s = simulator
-    # universe = s.pre_processing(prev_day)
-    universe = s.filter_by_universe(prev_day)
-    alpha = f(prev_day, universe, s.df)
+    df = s.cast_shared_data(s.shared_df)
+    data_dict = s.cast_shared_data(s.shared_data_dict)
+
+    # universe = s.pre_processing(data_dict, prev_day)
+    universe = s.filter_by_universe(data_dict, prev_day)
+    alpha = f(prev_day, universe, df)
     alpha = s.post_processing(alpha)
-    profit_pct = s.compute_profit_pct(today, alpha)
+    profit_pct = s.compute_profit_pct(data_dict, today, alpha)
     profit = profit_pct * s.booksize
     logger.info(
         f"{today} - Profit: {profit:-12.2f} ({profit / 1e3:-6.2f}k), Percent: {profit_pct:+6.2f}%"
