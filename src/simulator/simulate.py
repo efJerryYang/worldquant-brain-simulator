@@ -3,7 +3,7 @@ from database import *
 import yaml
 import timeit
 import matplotlib.pyplot as plt
-import multiprocessing
+import multiprocessing as mp
 from typing import Tuple, Dict, List, Callable
 from alpha101 import *
 import logging
@@ -13,7 +13,7 @@ logger.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
 console_handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    logging.Formatter("[%(asctime)s] - [%(levelname)s] - %(message)s")
 )
 logger.addHandler(console_handler)
 
@@ -42,7 +42,7 @@ def set_date_range(settings: dict) -> Tuple[str, str]:
         # ts_end = "1480521600000"  # test 2016-12-01
         # ts_end = "1464710400000"  # test 2016-06-01
     else:
-        print("[WARNING] No sample setting, use insample by default.")
+        logger.warning("No sample setting, use 'insample' by default.")
         ts_end = "1614528000000"  # insample 2021-03-01
     return ts_start, ts_end
 
@@ -158,21 +158,25 @@ def rank_universe(df: pd.DataFrame, inplace=True) -> None:
     direct_start = timeit.default_timer()
     compute_direct_factors(df)
     direct_end = timeit.default_timer()
-    print(f"Compute direct factors in {direct_end - direct_start:.2f} seconds.")
+    logger.info(f"Compute direct factors in {direct_end - direct_start:.2f} seconds.")
     cumulative_start = timeit.default_timer()
     compute_cumulative_factors(df)
     cumulative_end = timeit.default_timer()
-    print(
+    logger.info(
         f"Compute cumulative factors in {cumulative_end - cumulative_start:.2f} seconds."
     )
     filter_start = timeit.default_timer()
     filter_invalid_timestamp_ms(df)
     filter_end = timeit.default_timer()
-    print(f"Filter invalid timestamp_ms in {filter_end - filter_start:.2f} seconds.")
+    logger.info(
+        f"Filter invalid timestamp_ms in {filter_end - filter_start:.2f} seconds."
+    )
     rank_start = timeit.default_timer()
     compute_cum_liq_rank(df)
     rank_end = timeit.default_timer()
-    print(f"Compute cumulative liquidity rank in {rank_end - rank_start:.2f} seconds.")
+    logger.info(
+        f"Compute cumulative liquidity rank in {rank_end - rank_start:.2f} seconds."
+    )
 
 
 def prepare_data(settings: dict) -> pd.DataFrame:
@@ -180,16 +184,18 @@ def prepare_data(settings: dict) -> pd.DataFrame:
     load_start = timeit.default_timer()
     df = load_data_(ts_start, ts_end)
     load_end = timeit.default_timer()
-    print(f"Load data in {load_end - load_start:.2f} seconds.")
+
+    logger.info(f"Load data in {load_end - load_start:.2f} seconds.")
     filter_region(df, settings.get("region", "USA").upper())
     filter_type(df, settings.get("instrument-type", "Equity").capitalize())
     create_date_column(df)
-    print(f"Date range: {df['date'].min()} to {df['date'].max()}")
-    # print(df[df["date"] == pd.Timestamp("2021-02-26").date()])
+
+    logger.info(f"Date range: {df['date'].min()} to {df['date'].max()}")
+    # logger.info(df[df["date"] == pd.Timestamp("2021-02-26").date()])
     rank_start = timeit.default_timer()
     rank_universe(df)
     rank_end = timeit.default_timer()
-    print(f"Rank stocks in universe in {rank_end - rank_start:.2f} seconds.")
+    logger.info(f"Rank stocks in universe in {rank_end - rank_start:.2f} seconds.")
     # Drop unnecessary columns to save memory
     df.drop(columns=["timestamp_ms"], inplace=True)
     return df
@@ -198,12 +204,12 @@ def prepare_data(settings: dict) -> pd.DataFrame:
 def simulate():
     settings = load_settings()
     df = prepare_data(settings)
-    # print(df)
-    print(df[df["date"] == pd.Timestamp("2015-10-12").date()].iloc[0:30, :])
-    # print(df[df["date"] == pd.Timestamp("2021-02-26").date()])
+    # logger.info(df)
+    logger.info(df[df["date"] == pd.Timestamp("2015-10-12").date()].iloc[0:30, :])
+    # logger.info(df[df["date"] == pd.Timestamp("2021-02-26").date()])
     alpha = Alphas(df)
-    print(alpha)
-    print("Done")
+    logger.info(alpha)
+    logger.info("Done")
 
 
 class Simulator:
@@ -212,12 +218,24 @@ class Simulator:
         self.booksize = 20_000_000  # should not change
         ts_start, ts_end = set_date_range(self.settings)
         self.df = prepare_data(self.settings)
+        df_total_memory = sum(self.df.memory_usage(deep=True).sum() for df in [self.df])
+        # logger.debug(
+        #     f"DataFrame size: {self.df.values.nbytes} bytes (= {self.df.values.nbytes/1024**3:.2f} GiB)"
+        # )
+        logger.debug(
+            f"DataFrame size: {df_total_memory} bytes (= {df_total_memory/1024**3:.2f} GiB)"
+        )
         self.data_groupby_date = self.df.groupby("date")
         self.data_dict = self.init_data_dict()
+        total_memory = sum(
+            df.memory_usage(deep=True).sum() for df in self.data_dict.values()
+        )
+        logger.debug(
+            f"Data Dict: {total_memory} bytes (= {total_memory/1024**3:.2f} GiB)"
+        )
         self.date_list = sorted(self.data_dict.keys())
 
     def init_data_dict(self) -> Dict[str, pd.DataFrame]:
-        d = {}
         return {
             str(date): group.set_index("symbol", drop=True)
             for date, group in self.data_groupby_date
@@ -235,7 +253,7 @@ class Simulator:
             top = int(top)
         else:
             top = 3000
-            print("Invalid universe setting, use default value 3000.")
+            logger.warning("Invalid universe setting, use default value 3000.")
         day_data = self.data_dict[prev_day]
         day_data = day_data[day_data["cum_liq_rank"] < top + 1]
         return day_data.index.tolist()
@@ -262,15 +280,13 @@ class Simulator:
         idx = self.date_list.index(start_date)
         simulation_start = timeit.default_timer()
         for prev_day, today in zip(self.date_list[idx:-1], self.date_list[idx + 1 :]):
-            profit = process_day(
-                self.settings, self.df, self.data_dict, prev_day, today, f
-            )
+            profit = process_day(self, prev_day, today, f)
             if profit is None:
                 continue
             total += profit
             PnL.append(total)
         simulation_end = timeit.default_timer()
-        print(f"Simulation in {simulation_end - simulation_start:.2f} seconds.")
+        logger.info(f"Simulation in {simulation_end - simulation_start:.2f} seconds.")
         self.post_simulation(PnL)
 
     def post_simulation(self, PnL: List[float]) -> None:
@@ -287,26 +303,11 @@ class Simulator:
         idx = self.date_list.index(start_date)
         sim_date_list = self.date_list[idx:]
         # Use all available cores
-        num_processes = multiprocessing.cpu_count() // 2
+        num_processes = mp.cpu_count() // 2
         # # Split the date range into chunks
         chunk_size = len(sim_date_list) // num_processes
-        # chunks = [
-        #     sim_date_list[i : i + chunk_size]
-        #     for i in range(0, len(sim_date_list), chunk_size)
-        # ]
-        # remaining_dates = len(sim_date_list) % num_processes
-        # if remaining_dates > 0:
-        #     chunks[-1].extend(sim_date_list[-remaining_dates:])
-
-        multiprocessing_start = timeit.default_timer()
-        with multiprocessing.Pool(processes=num_processes) as pool:
-            # for chunk in chunks:
-            #     process_args = [
-            #         (self.settings, self.df, self.data_dict, prev_day, today, f)
-            #         for prev_day, today, in zip(chunk[:-1], chunk[1:])
-            #     ]
-            #     process_results = pool.starmap(process_day, process_args)
-            #     results.extend([r for r in process_results])
+        mp_start = timeit.default_timer()
+        with mp.Pool(processes=num_processes) as pool:
             process_args = [
                 (self, prev_day, today, f)
                 for prev_day, today, in zip(sim_date_list[:-1], sim_date_list[1:])
@@ -315,10 +316,8 @@ class Simulator:
                 process_day, process_args, chunksize=chunk_size
             )
             results.extend([r for r in process_results])
-        multiprocessing_end = timeit.default_timer()
-        print(
-            f"Multiprocessing in {multiprocessing_end - multiprocessing_start:.2f} seconds."
-        )
+        mp_end = timeit.default_timer()
+        logger.info(f"Multiprocessing in {mp_end - mp_start:.2f} seconds.")
         PnL = [
             sum(results[: i + 1]) for i in range(len(results))
         ]  # cumulative sum of results
@@ -353,7 +352,9 @@ def process_day(
     alpha = s.post_processing(alpha)
     profit_pct = s.compute_profit_pct(today, alpha)
     profit = profit_pct * s.booksize
-    logger.debug(f"{today}: {profit:.2f}")
+    logger.info(
+        f"{today} - Profit: {profit:-12.2f} ({profit / 1e3:-6.2f}k), Percent: {profit_pct:+6.2f}%"
+    )
     return profit
 
 
