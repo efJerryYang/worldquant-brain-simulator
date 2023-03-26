@@ -39,7 +39,7 @@ def stddev(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     return df.rolling(window).std()
 
 
-def correlation(x: pd.DataFrame, y, window: int = 10) -> pd.DataFrame:
+def correlation(x: pd.DataFrame, y: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     """
     Wrapper function to estimate rolling correlations.
 
@@ -51,10 +51,10 @@ def correlation(x: pd.DataFrame, y, window: int = 10) -> pd.DataFrame:
     return x.rolling(window).corr(y)
 
 
-def covariance(x, y, window: int = 10) -> pd.DataFrame:
+def covariance(x: pd.DataFrame, y: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     """
     Wrapper function to estimate rolling covariance.
-    :param df: a pandas DataFrame.
+    :param x: a pandas DataFrame.
     :param window: the rolling window.
     :return: a pandas DataFrame with the time-series min over the past 'window' days.
     """
@@ -124,7 +124,7 @@ def delta(df: pd.DataFrame, period=1) -> pd.DataFrame:
     Wrapper function to estimate difference.
     :param df: a pandas DataFrame.
     :param period: the difference grade.
-    :return: a pandas DataFrame with today’s value minus the value 'period' days ago.
+    :return: a pandas DataFrame with today's value minus the value 'period' days ago.
     """
     return df.diff(period)
 
