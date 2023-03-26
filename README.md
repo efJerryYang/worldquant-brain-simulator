@@ -10,9 +10,11 @@ This is a simulator to help with backtesting your alphas offline for platform Wo
 
 Some problems exist (data, expressions, procedure), so the results are still different from the platform's.
 
-![](./docs/9month_insample.png)
+![insample](./docs/insample.png)
 
-![](./docs/9month_insample_platform.png)
+![insample_platform](./docs/insample_platform.png)
+
+> Totol time cost is about 90 minutes on one core, so this is not a problem can be solved by only using multiprocessing.
 
 ## Project Structure
 
