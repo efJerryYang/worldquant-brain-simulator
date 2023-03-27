@@ -121,7 +121,7 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
 
     df.drop(df.groupby("symbol").head(89).index, inplace=True)
     df.dropna(inplace=True)
-    df.reset_index(drop=True, inplace=True)
+    # df.reset_index(drop=True, inplace=True)
 
 
 def compute_cum_liq_rank(df: pd.DataFrame, inplace=True) -> None:
@@ -147,7 +147,7 @@ def filter_invalid_timestamp_ms(df: pd.DataFrame, inplace=True) -> None:
     ts_list = df.groupby("timestamp_ms").agg({"symbol": "count"})
     ts_list = ts_list[ts_list["symbol"] < 200].index  # fewer than 200 available stocks
     df.drop(df[df["timestamp_ms"].isin(ts_list)].index, inplace=True)
-    df.reset_index(drop=True, inplace=True)
+    # df.reset_index(drop=True, inplace=True)
 
 
 def create_date_column(df: pd.DataFrame, inplace=True) -> None:
@@ -172,7 +172,7 @@ def rank_universe(df: pd.DataFrame, inplace=True) -> None:
         f"Filter invalid timestamp_ms in {filter_end - filter_start:.2f} seconds."
     )
     rank_start = timeit.default_timer()
-    compute_cum_liq_rank(df)
+    # compute_cum_liq_rank(df)
     rank_end = timeit.default_timer()
     logger.info(
         f"Compute cumulative liquidity rank in {rank_end - rank_start:.2f} seconds."
@@ -218,14 +218,14 @@ class Simulator:
         self.booksize = 20_000_000  # should not change
         ts_start, ts_end = set_date_range(self.settings)
         self.df = prepare_data(self.settings)
-        df_total_memory = sum(self.df.memory_usage(deep=True).sum() for df in [self.df])
+        df_total_memory = self.df.memory_usage(deep=True).sum()
         # logger.debug(
         #     f"DataFrame size: {self.df.values.nbytes} bytes (= {self.df.values.nbytes/1024**3:.2f} GiB)"
         # )
         logger.debug(
             f"DataFrame size: {df_total_memory} bytes (= {df_total_memory/1024**3:.2f} GiB)"
         )
-        self.data_groupby_date = self.df.groupby("date")
+        # self.data_groupby_date = self.df.groupby("date")
         self.data_dict = self.init_data_dict()
         total_memory = sum(
             df.memory_usage(deep=True).sum() for df in self.data_dict.values()
@@ -238,7 +238,7 @@ class Simulator:
     def init_data_dict(self) -> Dict[str, pd.DataFrame]:
         return {
             str(date): group.set_index("symbol", drop=True)
-            for date, group in self.data_groupby_date
+            for date, group in self.df.groupby("date")
         }
 
     def pre_processing(self, prev_day: str) -> List[str]:
@@ -255,7 +255,8 @@ class Simulator:
             top = 3000
             logger.warning("Invalid universe setting, use default value 3000.")
         day_data = self.data_dict[prev_day]
-        day_data = day_data[day_data["cum_liq_rank"] < top + 1]
+        # day_data = day_data[day_data["cum_liq_rank"] < top + 1]
+        day_data = day_data.nlargest(top, "cumulative_liq")
         return day_data.index.tolist()
 
     # @staticmethod
@@ -301,7 +302,7 @@ class Simulator:
         idx = self.date_list.index(start_date)
         sim_date_list = self.date_list[idx:]
         # Use all available cores
-        num_processes = mp.cpu_count() // 2
+        num_processes = mp.cpu_count() // 4
         # # Split the date range into chunks
         chunk_size = len(sim_date_list) // num_processes
         mp_start = timeit.default_timer()
@@ -330,6 +331,9 @@ class Simulator:
 def example_alpha(prev_day: str, universe: List[str], df: pd.DataFrame) -> pd.DataFrame:
     df = df[df["symbol"].isin(universe)]
     df = df[df["date"] <= pd.Timestamp(prev_day).date()]
+    # each symbol tail 90
+    df = df.groupby("symbol").tail(90)
+
     close = df.pivot(index="date", columns="symbol", values="close")
     volume = df.pivot(index="date", columns="symbol", values="volume")
     df = -rank(ts_delta(close, 2)) * rank(volume / ts_sum(volume, 30) / 30)
@@ -351,12 +355,12 @@ def process_day(
     profit_pct = s.compute_profit_pct(today, alpha)
     profit = profit_pct * s.booksize / 100
     logger.info(
-        f"{today} - Profit: {profit:-12.2f} ({profit / 1e3:-6.2f}k), Percent: {profit_pct:+6.2f}%"
+        f"{today} - Profit: {profit:+10.2f} ({profit / 1e3:+8.2f}k), Percent: {profit_pct:+6.2f}%"
     )
     return profit
 
 
 if __name__ == "__main__":
     s = Simulator()
-    s.simulate(example_alpha)
-    # s.simulate_with_multiprocessing(example_alpha)
+    # s.simulate(example_alpha)
+    s.simulate_with_multiprocessing(example_alpha)
