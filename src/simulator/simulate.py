@@ -78,7 +78,7 @@ def filter_type(df: pd.DataFrame, type: str, inplace=True):
 
 def compute_direct_factors(df: pd.DataFrame, inplace=True) -> None:
     df["typical_price"] = (df["high"] + df["low"] + df["close"]) / 3
-    df["liquidity"] = (df["volume"] * df["close"]).apply(np.log10)
+    df["liquidity"] = df["volume"] * df["close"]
 
 
 def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
@@ -281,8 +281,6 @@ class Simulator:
         simulation_start = timeit.default_timer()
         for prev_day, today in zip(self.date_list[idx:-1], self.date_list[idx + 1 :]):
             profit = process_day(self, prev_day, today, f)
-            if profit is None:
-                continue
             total += profit
             PnL.append(total)
         simulation_end = timeit.default_timer()
@@ -351,7 +349,7 @@ def process_day(
     alpha = f(prev_day, universe, s.df)
     alpha = s.post_processing(alpha)
     profit_pct = s.compute_profit_pct(today, alpha)
-    profit = profit_pct * s.booksize
+    profit = profit_pct * s.booksize / 100
     logger.info(
         f"{today} - Profit: {profit:-12.2f} ({profit / 1e3:-6.2f}k), Percent: {profit_pct:+6.2f}%"
     )
@@ -360,5 +358,5 @@ def process_day(
 
 if __name__ == "__main__":
     s = Simulator()
-    # s.simulate(example_alpha)
-    s.simulate_with_multiprocessing(example_alpha)
+    s.simulate(example_alpha)
+    # s.simulate_with_multiprocessing(example_alpha)
