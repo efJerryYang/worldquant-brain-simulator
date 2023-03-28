@@ -85,7 +85,7 @@ def filter_type(df: pd.DataFrame, type: str, inplace=True):
 
 def compute_direct_factors(df: pd.DataFrame, inplace=True) -> None:
     df["typical_price"] = (df["high"] + df["low"] + df["close"]) / 3
-    df["liquidity"] = df["volume"] * df["close"]
+    df["liquidity"] = (df["volume"] * df["close"]).apply(np.log)
 
 
 def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
