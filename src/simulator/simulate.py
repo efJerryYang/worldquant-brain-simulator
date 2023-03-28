@@ -16,6 +16,13 @@ console_handler.setFormatter(
     logging.Formatter("[%(asctime)s] - [%(levelname)s] - %(message)s")
 )
 logger.addHandler(console_handler)
+# copy the log to a file tmp_result3.log
+file_handler = logging.FileHandler(f"tmp_result_{pd.Timestamp.now():%Y%m%d%H%M%S}.log")
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(
+    logging.Formatter("[%(asctime)s] - [%(levelname)s] - %(message)s")
+)
+logger.addHandler(file_handler)
 
 
 def load_settings() -> dict:
@@ -379,5 +386,5 @@ def process_day(
 
 if __name__ == "__main__":
     s = Simulator()
-    # s.simulate(example_alpha)
-    s.simulate_with_multiprocessing(example_alpha)
+    s.simulate(example_alpha)
+    # s.simulate_with_multiprocessing(example_alpha)
