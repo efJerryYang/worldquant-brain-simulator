@@ -36,9 +36,9 @@ def set_date_range(settings: dict) -> Tuple[str, str]:
         ts_end = "1614528000000"  # insample 2021-03-01
     elif settings.get("sample") == "test":
         # ts_end = "1582992000000"  # test 2020-03-01
-        # ts_end = "1551369600000"  # test 2019-03-01
+        ts_end = "1551369600000"  # test 2019-03-01
         # ts_end = "1519833600000"  # test 2018-03-01
-        ts_end = "1488297600000"  # test 2017-03-01
+        # ts_end = "1488297600000"  # test 2017-03-01
         # ts_end = "1480521600000"  # test 2016-12-01
         # ts_end = "1464710400000"  # test 2016-06-01
     else:
@@ -206,7 +206,7 @@ def prepare_data(settings: dict) -> pd.DataFrame:
         ],
         inplace=True,
     )
-    print(df)
+    # print(df)
     return df
 
 
@@ -379,5 +379,5 @@ def process_day(
 
 if __name__ == "__main__":
     s = Simulator()
-    s.simulate(example_alpha)
-    # s.simulate_with_multiprocessing(example_alpha)
+    # s.simulate(example_alpha)
+    s.simulate_with_multiprocessing(example_alpha)
