@@ -197,7 +197,16 @@ def prepare_data(settings: dict) -> pd.DataFrame:
     rank_end = timeit.default_timer()
     logger.info(f"Rank stocks in universe in {rank_end - rank_start:.2f} seconds.")
     # Drop unnecessary columns to save memory
-    df.drop(columns=["timestamp_ms"], inplace=True)
+    df.drop(
+        columns=[
+            "timestamp_ms",
+            "liquidity",
+            "typical_price",
+            "amount",
+        ],
+        inplace=True,
+    )
+    print(df)
     return df
 
 
@@ -329,10 +338,13 @@ class Simulator:
 
 
 def example_alpha(prev_day: str, universe: List[str], df: pd.DataFrame) -> pd.DataFrame:
-    df = df[df["symbol"].isin(universe)]
-    df = df[df["date"] <= pd.Timestamp(prev_day).date()]
-    # each symbol tail 90
-    df = df.groupby("symbol").tail(90)
+    # df = df[df["symbol"].isin(universe)]
+    # df = df[df["date"] <= pd.Timestamp(prev_day).date()]
+    # start_date = pd.Timestamp(prev_day).date() - pd.DateOffset(days=60)
+    # end_date = pd.Timestamp(prev_day).date()
+    # df = df.query('symbol in @universe and @start_date <= date <= end_date')
+    # each symbol tail 60
+    # df = df.groupby("symbol").tail(60)
 
     close = df.pivot(index="date", columns="symbol", values="close")
     volume = df.pivot(index="date", columns="symbol", values="volume")
@@ -348,9 +360,14 @@ def process_day(
     f: Callable,
 ):
     s = simulator
+
     # universe = s.pre_processing(prev_day)
     universe = s.filter_by_universe(prev_day)
-    alpha = f(prev_day, universe, s.df)
+    prev_day_dt = pd.Timestamp(prev_day).date()
+    start_day_dt = (prev_day_dt - pd.DateOffset(days=60)).date()
+    df = s.df.query("symbol in @universe and @start_day_dt <= date <= @prev_day_dt")
+
+    alpha = f(prev_day, universe, df)
     alpha = s.post_processing(alpha)
     profit_pct = s.compute_profit_pct(today, alpha)
     profit = profit_pct * s.booksize / 100
@@ -362,5 +379,5 @@ def process_day(
 
 if __name__ == "__main__":
     s = Simulator()
-    # s.simulate(example_alpha)
-    s.simulate_with_multiprocessing(example_alpha)
+    s.simulate(example_alpha)
+    # s.simulate_with_multiprocessing(example_alpha)
