@@ -14,7 +14,7 @@ Some problems exist (data, expressions, procedure), so the results are still dif
 
 ![insample_platform](./docs/insample_platform.png)
 
-> Totol time cost is about 90 minutes on one core, so this is not a problem can be solved by only using multiprocessing.
+> Totol time cost is about 20 minutes on one core, target is 5 minutes per core.
 
 ## Project Structure
 
