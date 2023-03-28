@@ -16,7 +16,8 @@ console_handler.setFormatter(
     logging.Formatter("[%(asctime)s] - [%(levelname)s] - %(message)s")
 )
 logger.addHandler(console_handler)
-# copy the log to a file tmp_result3.log
+
+# copy the log to a file
 file_handler = logging.FileHandler(f"tmp_result_{pd.Timestamp.now():%Y%m%d%H%M%S}.log")
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(
@@ -129,25 +130,6 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
     df.drop(df.groupby("symbol").head(89).index, inplace=True)
     df.dropna(inplace=True)
     # df.reset_index(drop=True, inplace=True)
-
-
-def compute_cum_liq_rank(df: pd.DataFrame, inplace=True) -> None:
-    df.sort_values(by=["date", "cumulative_liq"], inplace=True, ascending=[True, False])
-    df["cum_liq_rank"] = (
-        df.groupby("date")["cumulative_liq"]
-        .rank(ascending=False, method="dense")
-        .apply(np.int32)
-    )  # set datatype to int
-
-
-def group_data_by_date(df: pd.DataFrame) -> pd.DataFrame:
-    return df.groupby("timestamp_ms").agg(
-        {
-            "symbol": "count",
-            "liquidity": "max",
-            "cumulative_liq": "max",
-        }
-    )
 
 
 def filter_invalid_timestamp_ms(df: pd.DataFrame, inplace=True) -> None:
@@ -344,15 +326,7 @@ class Simulator:
         return (alpha * returns).sum()
 
 
-def example_alpha(prev_day: str, universe: List[str], df: pd.DataFrame) -> pd.DataFrame:
-    # df = df[df["symbol"].isin(universe)]
-    # df = df[df["date"] <= pd.Timestamp(prev_day).date()]
-    # start_date = pd.Timestamp(prev_day).date() - pd.DateOffset(days=60)
-    # end_date = pd.Timestamp(prev_day).date()
-    # df = df.query('symbol in @universe and @start_date <= date <= end_date')
-    # each symbol tail 60
-    # df = df.groupby("symbol").tail(60)
-
+def example_alpha(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
     close = df.pivot(index="date", columns="symbol", values="close")
     volume = df.pivot(index="date", columns="symbol", values="volume")
     df = -rank(ts_delta(close, 2)) * rank(volume / ts_sum(volume, 30) / 30)
@@ -368,13 +342,12 @@ def process_day(
 ):
     s = simulator
 
-    # universe = s.pre_processing(prev_day)
     universe = s.filter_by_universe(prev_day)
     prev_day_dt = pd.Timestamp(prev_day).date()
     start_day_dt = (prev_day_dt - pd.DateOffset(days=60)).date()
     df = s.df.query("symbol in @universe and @start_day_dt <= date <= @prev_day_dt")
 
-    alpha = f(prev_day, universe, df)
+    alpha = f(prev_day, df)
     alpha = s.post_processing(alpha)
     profit_pct = s.compute_profit_pct(today, alpha)
     profit = profit_pct * s.booksize / 100
