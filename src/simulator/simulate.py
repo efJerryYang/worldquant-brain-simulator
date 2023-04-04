@@ -281,7 +281,7 @@ class Simulator:
         # fig size 4000 * 1500
         plt.figure(figsize=(40, 15))
         plt.plot(PnL)
-        plt.savefig(f"tmp_PnL_{pd.Timestamp.now():%Y-%m-%d_%H:%M:%S}.png")
+        plt.savefig(f"tmp_PnL_{pd.Timestamp.now():%Y-%m-%d_%H-%M-%S}.png")
 
     def simulate_with_multiprocessing(self, f: Callable) -> None:
         total = 0
