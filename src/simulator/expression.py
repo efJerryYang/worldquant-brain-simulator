@@ -119,6 +119,16 @@ def ts_max(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     return df.rolling(window).max()
 
 
+def ts_mean(df: pd.DataFrame, window: int = 10) -> pd.DataFrame:
+    """
+    Wrapper function to estimate rolling mean.
+    :param df: a pandas DataFrame.
+    :param window: the rolling window.
+    :return: a pandas DataFrame with the time-series mean over the past 'window' days.
+    """
+    return df.rolling(window).mean()
+
+
 def delta(df: pd.DataFrame, period=1) -> pd.DataFrame:
     """
     Wrapper function to estimate difference.
