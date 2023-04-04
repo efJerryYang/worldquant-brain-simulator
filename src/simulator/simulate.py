@@ -35,9 +35,9 @@ def set_ts_range(settings: dict) -> Tuple[str, str]:
         # date_end = "2020-03-01"  # test
         # date_end = "2019-03-01"  # test
         # date_end = "2018-03-01"  # test
-        date_end = "2017-03-01"  # test
+        # date_end = "2017-03-01"  # test
         # date_end = "2016-12-01"  # test
-        # date_end = "2016-06-01"  # test
+        date_end = "2016-06-01"  # test
     else:
         logger.warning("No sample setting, use 'insample' by default.")
         date_end = "2021-03-01"  # insample 2021-03-01
@@ -50,15 +50,15 @@ def load_data_(ts_start: str, ts_end: str) -> pd.DataFrame:
     where_stmt = f"timestamp_ms between {ts_start} and {ts_end}"
     df = load_data(
         [
-            "symbol",
-            "timestamp_ms",
-            "open",
-            "high",
-            "low",
-            "close",
-            "volume",
-            "percent as returns",
-            "amount",
+            "symbol",  #                object
+            "timestamp_ms",  #          int64
+            "open",  #                  float64
+            "high",  #                  float64
+            "low",  #                   float64
+            "close",  #                 float64
+            "volume",  #                int64
+            "percent as returns",  #    float64
+            "amount",  #                float64
         ],
         "stock_data_US",
         where=where_stmt,
