@@ -1,33 +1,18 @@
-from expression import *
-from database import *
 import yaml
 import timeit
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 from typing import Tuple, Dict, List, Callable
-from alpha101 import *
-import logging
 
 import dask
 import dask.dataframe as dd
 
+from expression import *
+from database import *
+from alpha101 import *
+from util import setup_logger, date2timestamp
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(
-    logging.Formatter("[%(asctime)s] - [%(levelname)s] - %(message)s")
-)
-logger.addHandler(console_handler)
-
-# copy the log to a file
-file_handler = logging.FileHandler(f"tmp_result_{pd.Timestamp.now():%Y%m%d%H%M%S}.log")
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(
-    logging.Formatter("[%(asctime)s] - [%(levelname)s] - %(message)s")
-)
-logger.addHandler(file_handler)
+logger = setup_logger(__name__)
 
 
 def load_settings() -> dict:
@@ -37,25 +22,27 @@ def load_settings() -> dict:
     return settings
 
 
-def set_date_range(settings: dict) -> Tuple[str, str]:
-    ts_start = "1433088000000"  # 2015-06-01
+def set_ts_range(settings: dict) -> Tuple[str, str]:
+    date_start = "2015-06-01"
     load_start = timeit.default_timer()
     if settings.get("sample") == "outsample":
-        ts_end = "1646064000000"  # cheating, use outsample 2022-03-01
+        date_end = "2022-03-01"  # cheating, use outsample
     elif settings.get("sample") == "latest":
-        ts_end = "1677600000000"  # cheating, use 2023-03-01
+        date_end = "2023-03-01"  # cheating
     elif settings.get("sample") == "insample":
-        ts_end = "1614528000000"  # insample 2021-03-01
+        date_end = "2021-03-01"  # insample
     elif settings.get("sample") == "test":
-        # ts_end = "1582992000000"  # test 2020-03-01
-        ts_end = "1551369600000"  # test 2019-03-01
-        # ts_end = "1519833600000"  # test 2018-03-01
-        # ts_end = "1488297600000"  # test 2017-03-01
-        # ts_end = "1480521600000"  # test 2016-12-01
-        # ts_end = "1464710400000"  # test 2016-06-01
+        # date_end = "2020-03-01"  # test
+        # date_end = "2019-03-01"  # test
+        # date_end = "2018-03-01"  # test
+        date_end = "2017-03-01"  # test
+        # date_end = "2016-12-01"  # test
+        # date_end = "2016-06-01"  # test
     else:
         logger.warning("No sample setting, use 'insample' by default.")
-        ts_end = "1614528000000"  # insample 2021-03-01
+        date_end = "2021-03-01"  # insample 2021-03-01
+    ts_start = date2timestamp(date_start)
+    ts_end = date2timestamp(date_end)
     return ts_start, ts_end
 
 
@@ -173,7 +160,7 @@ def rank_universe(df: pd.DataFrame, inplace=True) -> None:
 
 
 def prepare_data(settings: dict) -> pd.DataFrame:
-    ts_start, ts_end = set_date_range(settings)
+    ts_start, ts_end = set_ts_range(settings)
     load_start = timeit.default_timer()
     df = load_data_(ts_start, ts_end)
     load_end = timeit.default_timer()
@@ -218,7 +205,7 @@ class Simulator:
     def __init__(self) -> None:
         self.settings = load_settings()
         self.booksize = 20_000_000  # should not change
-        ts_start, ts_end = set_date_range(self.settings)
+        ts_start, ts_end = set_ts_range(self.settings)
         self.df = prepare_data(self.settings)
         df_total_memory = self.df.memory_usage(deep=True).sum()
         # logger.debug(
@@ -335,25 +322,25 @@ def example_alpha(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
     volume = df.pivot(index="date", columns="symbol", values="volume")
 
     df = -rank(ts_delta(close, 2)) * rank(volume / ts_sum(volume, 30) / 30)
-    
+
     df = df.loc[pd.Timestamp(prev_day).date()]
     return df
 
 
 def example_alpha2(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
     close = df.pivot(index="date", columns="symbol", values="close")
-    
+
     df = -(close - ts_mean(close, 5))
-    
+
     df = df.loc[pd.Timestamp(prev_day).date()]
     return df
 
 
 def example_alpha3(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
     close = df.pivot(index="date", columns="symbol", values="close")
-    
+
     df = rank(-(close - ts_mean(close, 10)))
-    
+
     df = df.loc[pd.Timestamp(prev_day).date()]
     return df
 
@@ -383,5 +370,5 @@ def process_day(
 
 if __name__ == "__main__":
     s = Simulator()
-    s.simulate(example_alpha)
-    # s.simulate_with_multiprocessing(example_alpha)
+    # s.simulate(example_alpha)
+    s.simulate_with_multiprocessing(example_alpha2)
