@@ -32,12 +32,14 @@ def set_ts_range(settings: dict) -> Tuple[str, str]:
     elif settings.get("sample") == "insample":
         date_end = "2021-03-01"  # insample
     elif settings.get("sample") == "test":
+        date_end = "2020-09-01"  # insample
         # date_end = "2020-03-01"  # test
         # date_end = "2019-03-01"  # test
         # date_end = "2018-03-01"  # test
         # date_end = "2017-03-01"  # test
         # date_end = "2016-12-01"  # test
-        date_end = "2016-06-01"  # test
+        # date_end = "2016-06-01"  # test
+        date_start = "2019-06-01"
     else:
         logger.warning("No sample setting, use 'insample' by default.")
         date_end = "2021-03-01"  # insample 2021-03-01
@@ -263,11 +265,19 @@ class Simulator:
         alpha = alpha / alpha.abs().sum()
         return alpha
 
+    def __set_sim_start_date(self) -> int:
+        start_date = self.settings.get("start-date", "2016-03-01")
+        try:
+            idx = self.date_list.index(start_date)
+        except ValueError as ve:
+            logger.warning(f"Start date {start_date} not found, use set 'idx' to 0.")
+            idx = 0
+        return idx
+
     def simulate(self, f: Callable) -> None:
         total = 0
         PnL = []
-        start_date = "2016-03-01"
-        idx = self.date_list.index(start_date)
+        idx = self.__set_sim_start_date()
         simulation_start = timeit.default_timer()
         for prev_day, today in zip(self.date_list[idx:-1], self.date_list[idx + 1 :]):
             profit = process_day(self, prev_day, today, f)
@@ -287,8 +297,7 @@ class Simulator:
         total = 0
         PnL = []
         results = []
-        start_date = "2016-03-01"
-        idx = self.date_list.index(start_date)
+        idx = self.__set_sim_start_date()
         sim_date_list = self.date_list[idx:]
         # Use all available cores
         num_processes = mp.cpu_count() // 4
@@ -371,4 +380,4 @@ def process_day(
 if __name__ == "__main__":
     s = Simulator()
     # s.simulate(example_alpha)
-    s.simulate_with_multiprocessing(example_alpha2)
+    s.simulate_with_multiprocessing(example_alpha3)
