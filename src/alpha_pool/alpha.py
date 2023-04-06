@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from expression import *
+from .expression import *
 
 
 def eg_alpha(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
