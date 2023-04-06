@@ -1416,11 +1416,17 @@ xtest = points_test[:, 1]
 ytest = points_test[:, 2]
 ytest = -ytest .+ 500
 
+include("utils.jl")
+
 # Reproduce the original series
 ymin = 1614.12
 ymax = 4045.76
-
-include("utils.jl")
-
 original_ytest = recover_original_series(ytest, ymin, ymax)
-p = plot_series(xtest, original_ytest)
+p = plot_series(xtest, original_ytest, "eg_alpha_test")
+
+
+ymin_full = 2657.00
+ymax_full = 4616.61
+original_yfull = recover_original_series(yfull, ymin_full, ymax_full)
+# p = plot_series(xfull, original_yfull, save_name="eg_alpha_full")
+p = plot_series_step(xfull, original_yfull, 64, "eg_alpha_full")
