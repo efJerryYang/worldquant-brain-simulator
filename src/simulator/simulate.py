@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 from typing import Tuple, Dict, List, Callable
 
+import pandas as pd
+import numpy as np
+
 import dask
 import dask.dataframe as dd
 
@@ -304,14 +307,14 @@ class Simulator:
         """
         fig, ax = plt.subplots(figsize=(40, 15))
         plt.subplots_adjust(
-            left=0.02, bottom=0.10, right=0.98, top=0.90, wspace=0.1, hspace=0.1
+            left=0.02, bottom=0.10, right=0.98, top=0.90, wspace=0.05, hspace=0.05
         )
         ax.plot(PnL)
 
         if len(date_list) != len(PnL):
             raise ValueError("Length of date_list and PnL must be the same.")
 
-        step = len(PnL) // 50
+        step = len(PnL) // 64
         ax.set_xticks(np.arange(0, len(PnL), step))
         angle = 45  # angle to slant the x-axis labels
         ax.set_xticklabels(date_list[::step], rotation=angle, ha="right", va="top")
