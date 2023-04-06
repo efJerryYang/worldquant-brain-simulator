@@ -359,7 +359,7 @@ class Simulator:
         return (alpha * returns).sum()
 
 
-def example_alpha(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
+def eg_alpha(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
     close = df.pivot(index="date", columns="symbol", values="close")
     volume = df.pivot(index="date", columns="symbol", values="volume")
 
@@ -369,7 +369,7 @@ def example_alpha(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def example_alpha2(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
+def eg_alpha2(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
     close = df.pivot(index="date", columns="symbol", values="close")
 
     df = -(close - ts_mean(close, 5))
@@ -378,7 +378,7 @@ def example_alpha2(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def example_alpha3(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
+def eg_alpha3(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
     close = df.pivot(index="date", columns="symbol", values="close")
 
     df = rank(-(close - ts_mean(close, 10)))
@@ -412,5 +412,5 @@ def process_day(
 
 if __name__ == "__main__":
     s = Simulator()
-    # s.simulate(example_alpha)
-    s.simulate_with_multiprocessing(example_alpha3)
+    # s.simulate(eg_alpha)
+    s.simulate_with_multiprocessing(eg_alpha3)
