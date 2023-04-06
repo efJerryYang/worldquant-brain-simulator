@@ -7,10 +7,10 @@ from typing import Tuple, Dict, List, Callable
 import dask
 import dask.dataframe as dd
 
-from database import *
-from alpha101 import *
-from alpha import *
-from util import setup_logger, date2timestamp
+from datasource.database import *
+from alpha_pool.alpha101 import *
+from alpha_pool.alpha import *
+from .util import setup_logger, date2timestamp
 
 logger = setup_logger(__name__)
 
@@ -256,10 +256,10 @@ class Simulator:
         Neutralization and normalization to get the final weights.
         """
         # Neutralization
-        by_what = s.settings.get("neutralization", "Market").lower()
+        by_what = self.settings.get("neutralization", "Market").lower()
         alpha = alpha - alpha.mean()
         # Truncation
-        boundary = s.settings.get("truncation", 0.1)
+        boundary = self.settings.get("truncation", 0.1)
         alpha = alpha.clip(-boundary, boundary)
         # Normalization
         alpha = alpha / alpha.abs().sum()
