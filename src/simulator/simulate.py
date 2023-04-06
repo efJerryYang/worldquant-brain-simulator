@@ -32,14 +32,14 @@ def set_ts_range(settings: dict) -> Tuple[str, str]:
     elif settings.get("sample") == "insample":
         date_end = "2021-03-01"  # insample
     elif settings.get("sample") == "test":
-        date_end = "2020-09-01"  # insample
+        date_end = "2020-09-01"  # abnormal data test end
         # date_end = "2020-03-01"  # test
         # date_end = "2019-03-01"  # test
         # date_end = "2018-03-01"  # test
         # date_end = "2017-03-01"  # test
         # date_end = "2016-12-01"  # test
         # date_end = "2016-06-01"  # test
-        date_start = "2019-06-01"
+        date_start = "2019-03-01" # abnormal data test start
     else:
         logger.warning("No sample setting, use 'insample' by default.")
         date_end = "2021-03-01"  # insample 2021-03-01
@@ -270,8 +270,8 @@ class Simulator:
         try:
             idx = self.date_list.index(start_date)
         except ValueError as ve:
-            logger.warning(f"Start date {start_date} not found, use set 'idx' to 0.")
-            idx = 0
+            logger.warning(f"Start date {start_date} not found, set 'idx' to 90.")
+            idx = 90
         return idx
 
     def simulate(self, f: Callable) -> None:
