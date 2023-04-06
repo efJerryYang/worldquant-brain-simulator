@@ -1,3 +1,6 @@
+using Plots
+using Statistics
+
 points_full = [0 225.860815434029
     1.2405582922831 224.0194656666748
     2.4811165845638 225.5531490247251
@@ -1403,3 +1406,21 @@ points_test = [
     1505.5305524414 31.311253183769992
     1513.9272302122 43.240831956540006
 ]
+
+# Prepare data
+xfull = points_full[:, 1]
+yfull = points_full[:, 2]
+yfull = -yfull .+ 500
+
+xtest = points_test[:, 1]
+ytest = points_test[:, 2]
+ytest = -ytest .+ 500
+
+# Reproduce the original series
+ymin = 1614.12
+ymax = 4045.76
+
+include("utils.jl")
+
+original_ytest = recover_original_series(ytest, ymin, ymax)
+p = plot_series(xtest, original_ytest)
