@@ -39,7 +39,7 @@ def set_ts_range(settings: dict) -> Tuple[str, str]:
         # date_end = "2017-03-01"  # test
         # date_end = "2016-12-01"  # test
         # date_end = "2016-06-01"  # test
-        date_start = "2019-03-01" # abnormal data test start
+        date_start = "2019-03-01"  # abnormal data test start
     else:
         logger.warning("No sample setting, use 'insample' by default.")
         date_end = "2021-03-01"  # insample 2021-03-01
@@ -303,6 +303,9 @@ class Simulator:
             None
         """
         fig, ax = plt.subplots(figsize=(40, 15))
+        plt.subplots_adjust(
+            left=0.02, bottom=0.10, right=0.98, top=0.90, wspace=0.1, hspace=0.1
+        )
         ax.plot(PnL)
 
         if len(date_list) != len(PnL):
