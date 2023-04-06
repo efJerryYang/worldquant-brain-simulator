@@ -5,7 +5,7 @@ from numpy import abs
 from numpy import log
 from numpy import sign
 
-from expression import *
+from .expression import *
 
 
 def get_alpha(df: pd.DataFrame) -> pd.DataFrame:
