@@ -285,13 +285,46 @@ class Simulator:
             PnL.append(total)
         simulation_end = timeit.default_timer()
         logger.info(f"Simulation in {simulation_end - simulation_start:.2f} seconds.")
-        self.post_simulation(PnL)
+        self.post_simulation(f.__name__, self.date_list[idx:-1], PnL)
 
-    def post_simulation(self, PnL: List[float]) -> None:
-        # fig size 4000 * 1500
-        plt.figure(figsize=(40, 15))
-        plt.plot(PnL)
-        plt.savefig(f"tmp_PnL_{pd.Timestamp.now():%Y-%m-%d_%H-%M-%S}.png")
+    def post_simulation(
+        self, alpha_name: str, date_list: List[str], PnL: List[float]
+    ) -> None:
+        """Plot PnL and save the figure.
+
+        Parameters
+        ----------
+            alpha_name (str): Name of the alpha.
+            date_list (List[str]): List of date strings.
+            PnL (List[float]): List of PnL values.
+
+        Returns
+        ----------
+            None
+        """
+        fig, ax = plt.subplots(figsize=(40, 15))
+        ax.plot(PnL)
+
+        if len(date_list) != len(PnL):
+            raise ValueError("Length of date_list and PnL must be the same.")
+
+        step = len(PnL) // 50
+        ax.set_xticks(np.arange(0, len(PnL), step))
+        angle = 45  # angle to slant the x-axis labels
+        ax.set_xticklabels(date_list[::step], rotation=angle, ha="right", va="top")
+
+        # Add small red dots at the y-axis position
+        for i in ax.get_xticks():
+            ax.plot(i, PnL[i], "ro", markersize=3)
+
+        # Save figure
+        tmp_prefix = "tmp_" if self.settings.get("temporary", True) else ""
+        start_date, end_date = date_list[0], date_list[-1]
+        fig_prefix = f"{tmp_prefix}PnL_{alpha_name}_{start_date}_{end_date}_step{step}"
+        timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+        fig_path = f"{fig_prefix}_{timestamp}.png"
+        fig.savefig(fig_path)
 
     def simulate_with_multiprocessing(self, f: Callable) -> None:
         total = 0
@@ -318,7 +351,7 @@ class Simulator:
         PnL = [
             sum(results[: i + 1]) for i in range(len(results))
         ]  # cumulative sum of results
-        self.post_simulation(PnL)
+        self.post_simulation(f.__name__, sim_date_list[:-1], PnL)
 
     # @staticmethod
     def compute_profit_pct(self, today: str, alpha: pd.DataFrame) -> float:
