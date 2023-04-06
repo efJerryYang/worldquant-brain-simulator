@@ -7,9 +7,9 @@ from typing import Tuple, Dict, List, Callable
 import dask
 import dask.dataframe as dd
 
-from expression import *
 from database import *
 from alpha101 import *
+from alpha import *
 from util import setup_logger, date2timestamp
 
 logger = setup_logger(__name__)
@@ -357,34 +357,6 @@ class Simulator:
     def compute_profit_pct(self, today: str, alpha: pd.DataFrame) -> float:
         returns = self.data_dict[today]["returns"].reindex(alpha.index)
         return (alpha * returns).sum()
-
-
-def eg_alpha(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
-    close = df.pivot(index="date", columns="symbol", values="close")
-    volume = df.pivot(index="date", columns="symbol", values="volume")
-
-    df = -rank(ts_delta(close, 2)) * rank(volume / ts_sum(volume, 30) / 30)
-
-    df = df.loc[pd.Timestamp(prev_day).date()]
-    return df
-
-
-def eg_alpha2(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
-    close = df.pivot(index="date", columns="symbol", values="close")
-
-    df = -(close - ts_mean(close, 5))
-
-    df = df.loc[pd.Timestamp(prev_day).date()]
-    return df
-
-
-def eg_alpha3(prev_day: str, df: pd.DataFrame) -> pd.DataFrame:
-    close = df.pivot(index="date", columns="symbol", values="close")
-
-    df = rank(-(close - ts_mean(close, 10)))
-
-    df = df.loc[pd.Timestamp(prev_day).date()]
-    return df
 
 
 def process_day(
