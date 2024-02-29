@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 from typing import Tuple, Dict, List, Callable
 
-import dask
-import dask.dataframe as dd
 
 from datasource.database import *
 from alpha_pool.alpha101 import *

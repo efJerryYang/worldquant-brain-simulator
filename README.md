@@ -58,3 +58,9 @@ worldquant-brain-simulator/
 ## References
 
 - The fast expression and Alpha 101 implementation: [WorldQuant_alpha101_code](https://github.com/yli188/WorldQuant_alpha101_code)
+
+<!-- 
+actual dependencies:
+```
+pip install numpy pandas scipy polars pipreqs ruff
+ -->
