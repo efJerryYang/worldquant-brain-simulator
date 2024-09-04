@@ -1,6 +1,6 @@
 # WorldQuant BRAIN Simulator
 
-> **Help Wanted**: See issue [#3](https://github.com/efJerryYang/worldquant-brain-simulator/issues/3) for more details.
+<!-- > **Help Wanted**: See issue [#3](https://github.com/efJerryYang/worldquant-brain-simulator/issues/3) for more details. -->
 
 ## Introduction
 
@@ -13,33 +13,37 @@ Some problems exist (data, expressions, procedure), so the results are still dif
 ![insample](./docs/insample.png)
 
 ![insample_platform](./docs/insample_platform.png)
-
-> Totol time cost is about 20 minutes on one core, target is 5 minutes per core.
+<!-- 
+> Totol time cost is about 20 minutes on one core, target is 5 minutes per core. -->
 
 ## Project Structure
 
 ```sh
 worldquant-brain-simulator/
-|-- alpha
 |-- data
-|   |-- stock_snowball_us.db
-|   `-- stock_snowball_us_full.db.tar.gz
-|-- history
+|   `-- stock_snowball_us.db
+|-- docs
 |-- LICENSE
 |-- README.md
 |-- requirements.txt
-|-- src
-|   `-- simulator
-|       |-- alpha101.py
-|       |-- database.py
-|       |-- expression.py
-|       |-- fetch.py
-|       |-- __init__.py
-|       |-- settings.yaml
-|       `-- simulate.py
-`-- test
+`-- src
+    |-- alpha_pool
+    |   |-- alpha101.py
+    |   |-- alpha.py
+    |   |-- expression.py
+    |   `-- __init__.py
+    |-- datasource
+    |   |-- database.py
+    |   |-- fetch.py
+    |   `-- __init__.py
+    |-- main.py
+    `-- simulator
+        |-- __init__.py
+        |-- settings.yaml
+        |-- simulate.py
+        `-- util.py
 ```
-
+<!-- 
 ## Todos
 
 - [ ] Too slow, is it possible for Python to be faster?
@@ -53,7 +57,7 @@ worldquant-brain-simulator/
 - [x] Change `date` and `next_day` to `prev_day` and `today`
 - [ ] Truncation correctness (current not necessarily working)
 
-- [x] Implement multiprocessing
+- [x] Implement multiprocessing -->
 
 ## References
 
