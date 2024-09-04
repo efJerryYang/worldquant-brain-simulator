@@ -5,11 +5,14 @@ from datetime import datetime
 def setup_logger(logger_name) -> logging.Logger:
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.DEBUG)
+    
+    formatter = logging.Formatter(
+        "[%(asctime)s] - [%(levelname)s] - [%(filename)s:%(lineno)d] - %(message)s"
+    )
+    
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG)
-    console_handler.setFormatter(
-        logging.Formatter("[%(asctime)s] - [%(levelname)s] - %(message)s")
-    )
+    console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
     # copy the log to a file
@@ -17,9 +20,7 @@ def setup_logger(logger_name) -> logging.Logger:
         f"tmp_result_{datetime.now().strftime('%Y%m%d%H%M%S')}.log"
     )
     file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(
-        logging.Formatter("[%(asctime)s] - [%(levelname)s] - %(message)s")
-    )
+    file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
     return logger
 
