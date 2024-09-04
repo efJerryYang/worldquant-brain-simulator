@@ -1,5 +1,5 @@
 import logging
-import pandas as pd
+from datetime import datetime
 
 
 def setup_logger(logger_name) -> logging.Logger:
@@ -14,7 +14,7 @@ def setup_logger(logger_name) -> logging.Logger:
 
     # copy the log to a file
     file_handler = logging.FileHandler(
-        f"tmp_result_{pd.Timestamp.now():%Y%m%d%H%M%S}.log"
+        f"tmp_result_{datetime.now().strftime('%Y%m%d%H%M%S')}.log"
     )
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(
@@ -29,17 +29,31 @@ logger = setup_logger(__name__)
 
 def date2timestamp(date_str: str, ms=True) -> str:
     try:
-        ts = pd.Timestamp(date_str).timestamp()  # float
+        ts = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S.%f").timestamp()  # float
         if ms:
             return str(int(ts * 1000))
         else:
             return str(int(ts))
     except ValueError:
-        logger.error(f"Invalid date string: {date_str}")
-        raise ValueError(f"Invalid date string: {date_str}")
+        try:
+            ts = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S").timestamp()  # float
+            if ms:
+                return str(int(ts * 1000))
+            else:
+                return str(int(ts))
+        except ValueError:
+            try:
+                ts = datetime.strptime(date_str, "%Y-%m-%d").timestamp()  # float
+                if ms:
+                    return str(int(ts * 1000))
+                else:
+                    return str(int(ts))
+            except ValueError:
+                logger.error(f"Invalid date string: {date_str}")
+                raise ValueError(f"Invalid date string: {date_str}")
 
 
 if __name__ == "__main__":
-    print(date2timestamp("2020-01-01 00:00:00"))
-    print(date2timestamp("2020-01-01"))
-    print(date2timestamp("2020-01-01 01:01:23"))
+    logger.info(date2timestamp("2020-01-01 00:00:00"))
+    logger.info(date2timestamp("2020-01-01"))
+    logger.info(date2timestamp("2020-01-01 01:01:23"))
