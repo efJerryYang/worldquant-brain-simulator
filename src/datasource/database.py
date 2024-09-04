@@ -1,10 +1,9 @@
+from datetime import datetime
 import os
 import time
 from typing import List
 
-
-import pandas as pd
-import numpy as np
+import polars as pl
 import sqlite3 as sl
 
 
@@ -21,9 +20,9 @@ def connect_to_database() -> sl.Connection:
     return sl.connect(get_database_path())
 
 
-def select_query(conn, query: str, args: tuple = ()) -> pd.DataFrame:
+def select_query(conn, query: str) -> pl.DataFrame:
     try:
-        df = pd.read_sql(query, conn, params=args)
+        df = pl.read_database(query, conn)
     except sl.OperationalError as e:
         raise e
     return df
@@ -36,12 +35,12 @@ def handle_load_error(
     args: tuple = (),
     max_attempts: int = 10,
     wait_seconds: float = 10.0,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     original_error = e
     if isinstance(e, sl.OperationalError) and "locked" in str(e).lower():
         for i in range(max_attempts):
             print(
-                f"[{pd.Timestamp.now():%Y-%m-%d %H:%M:%S.%f}] - Database is locked, try again in {wait_seconds} seconds... [{i+1}/{max_attempts}]"
+                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] - Database is locked, try again in {wait_seconds} seconds... [{i+1}/{max_attempts}]"
             )
             time.sleep(wait_seconds)
             try:
@@ -57,7 +56,7 @@ def handle_load_error(
 def handle_store_error(
     e: sl.DatabaseError,
     conn: sl.Connection,
-    data: pd.DataFrame,
+    data: pl.DataFrame,
     table_name: str,
     max_attempts: int = 10,
     wait_seconds: float = 10.0,
@@ -66,16 +65,14 @@ def handle_store_error(
     if isinstance(e, sl.OperationalError) and "locked" in str(e).lower():
         for i in range(max_attempts):
             print(
-                f"[{pd.Timestamp.now():%Y-%m-%d %H:%M:%S.%f}] - Database is locked, try again in {wait_seconds} seconds... [{i+1}/{max_attempts}]"
+                    f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] - Database is locked, try again in {wait_seconds} seconds... [{i+1}/{max_attempts}]"
             )
             time.sleep(wait_seconds)
             try:
-                data.to_sql(
+                data.write_database(
                     table_name,
                     conn,
                     if_exists="append",
-                    index=False,
-                    dtype={"symbol": "TEXT"},
                 )
                 return conn.total_changes
             except sl.OperationalError as e:
@@ -87,7 +84,7 @@ def handle_store_error(
 
 def load_data(
     select_list: List[str], table_name: str, where: str = "true", distinct=True
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """
     Load data from database based on select_list and table_name. Connection will be created and closed automatically.
 
@@ -121,17 +118,15 @@ def load_data(
             return handle_load_error(e, conn, query)
 
 
-def store_data(data: pd.DataFrame, table_name: str) -> int:
+def store_data(data: pl.DataFrame, table_name: str) -> int:
     conn = connect_to_database()
     with conn:
         try:
-            data.to_sql(
+            data.write_database(
                 table_name,
                 conn,
                 if_exists="append",
-                index=False,
-                dtype={"symbol": "TEXT"},
-            )  # chunksize is optional, by default all rows will be inserted at once
+            )
             return conn.total_changes
         except sl.OperationalError as e:
             return handle_store_error(e, conn, data, table_name)
@@ -193,7 +188,7 @@ if __name__ == "__main__":
     df = load_data(
         ["symbol", "current", "market_capital", "volume", "turnover_rate", "name"],
         "stock_list_US",  # 这个表是当前基本信息表，是当前的统计信息，类似于 metadata，我们用不太着，这里只是用作样例
-        where=f"symbol in {tuple(df.values.flatten())}",
+        where=f"symbol in {tuple(df.to_series())}",
     )
     print(df)
     # select * from (select timestamp_ms, count(*) as count from stock_data_US GROUP BY timestamp_ms ORDER BY timestamp_ms) where count >= 3000 and timestamp_ms BETWEEN 1451577600000 and 1472659200000;
