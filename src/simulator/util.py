@@ -52,8 +52,14 @@ def date2timestamp(date_str: str, ms=True) -> str:
                 logger.error(f"Invalid date string: {date_str}")
                 raise ValueError(f"Invalid date string: {date_str}")
 
+def timestamp2date(timestamp_ms: str) -> str:
+    return datetime.fromtimestamp(int(timestamp_ms) / 1000).strftime("%Y-%m-%d %H:%M:%S.%f")
+
 
 if __name__ == "__main__":
-    logger.info(date2timestamp("2020-01-01 00:00:00"))
+    logger.info(date2timestamp("2020-01-01 00:00:00.231"))
+    logger.info(timestamp2date(date2timestamp("2020-01-01 00:00:00.231")))
     logger.info(date2timestamp("2020-01-01"))
+    logger.info(timestamp2date(date2timestamp("2020-01-01")))
     logger.info(date2timestamp("2020-01-01 01:01:23"))
+    logger.info(timestamp2date(date2timestamp("2020-01-01 01:01:23")))
