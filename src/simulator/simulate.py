@@ -91,8 +91,7 @@ def compute_cumulative_factors(df: pd.DataFrame, inplace=True) -> None:
         Whether to modify df in place, by default True
     """
     # Data preprocessing
-    df["amount"].replace(0, np.nan, inplace=True)
-    df["amount"].interpolate(method="linear", inplace=True)
+    df['amount'] = df['amount'].replace(0, np.nan).interpolate(method='linear')
 
     # # Cumulative Factor#1 cumulative volume
     # df["cum_volume"] = (
