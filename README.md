@@ -46,11 +46,12 @@ This rewrite uses `uv` and Python 3.14.
 
 ```sh
 uv run wqsim alphas
-uv run wqsim run --alpha eg_alpha3 --sample test --output-dir tmp
+uv run wqsim run --alpha eg_alpha3 --sample test --output-dir tmp --metrics
 uv run pytest
 ```
 
 The new runtime loads SQLite data with Polars, converts it into dense NumPy panels, evaluates alpha functions in batch, and writes cumulative PnL figures from the CLI.
+See [docs/accuracy.md](./docs/accuracy.md) for the current accuracy baseline and known limits.
 <!-- 
 ## Todos
 

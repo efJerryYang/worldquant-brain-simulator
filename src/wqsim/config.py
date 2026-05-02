@@ -24,6 +24,7 @@ class SimulatorConfig:
     universe: str = "Top3000"
     delay: int = 1
     neutralization: str = "Market"
+    post_process_mode: str = "legacy"
     truncation: float = 0.01
     booksize: float = 20_000_000.0
     start_date: date | None = None

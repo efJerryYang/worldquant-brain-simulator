@@ -1,0 +1,79 @@
+import sqlite3
+from datetime import date, timedelta
+
+import numpy as np
+
+from wqsim.config import SimulatorConfig
+from wqsim.data import load_market_panel
+
+
+def test_load_market_panel_from_sqlite_fixture(tmp_path):
+    database_path = tmp_path / "fixture.db"
+    _create_fixture_database(database_path)
+    config = SimulatorConfig(
+        database_path=database_path,
+        load_start_date=date(2020, 1, 1),
+        end_date=date(2020, 4, 3),
+        min_symbols_per_day=2,
+    )
+
+    panel = load_market_panel(config)
+
+    np.testing.assert_array_equal(
+        panel.dates,
+        np.array(["2020-03-30", "2020-03-31", "2020-04-01"], dtype="datetime64[D]"),
+    )
+    np.testing.assert_array_equal(panel.symbols, np.array(["AAA", "BBB"]))
+    np.testing.assert_allclose(panel.field("vwap")[:, 0], 10.0)
+    np.testing.assert_allclose(panel.field("vwap")[:, 1], 20.0)
+    np.testing.assert_allclose(panel.field("cumulative_liq")[:, 0], 90 * np.log(1_000.0))
+    np.testing.assert_allclose(panel.field("cumulative_liq")[:, 1], 90 * np.log(4_000.0))
+
+
+def _create_fixture_database(database_path):
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE stock_data_US (
+                timestamp_ms INTEGER,
+                volume INTEGER,
+                open REAL,
+                high REAL,
+                low REAL,
+                close REAL,
+                percent REAL,
+                amount REAL,
+                symbol TEXT
+            )
+            """
+        )
+        start = date(2020, 1, 1)
+        for offset in range(92):
+            day = start + timedelta(days=offset)
+            aaa_amount = 0.0 if offset == 90 else 1_000.0
+            _insert_row(connection, day, "AAA", volume=100, close=10.0, amount=aaa_amount)
+            _insert_row(connection, day, "BBB", volume=200, close=20.0, amount=4_000.0)
+        _insert_row(connection, date(2020, 4, 2), "AAA", volume=100, close=10.0, amount=1_000.0)
+
+
+def _insert_row(connection, day, symbol, volume, close, amount):
+    timestamp_ms = int(np.datetime64(day, "ms").astype("int64"))
+    connection.execute(
+        """
+        INSERT INTO stock_data_US (
+            timestamp_ms, volume, open, high, low, close, percent, amount, symbol
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            timestamp_ms,
+            volume,
+            close - 0.5,
+            close + 0.5,
+            close - 1.0,
+            close,
+            0.1,
+            amount,
+            symbol,
+        ),
+    )

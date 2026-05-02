@@ -1,6 +1,18 @@
 import numpy as np
 
-from wqsim.fast_expr import correlation, delay, delta, rank, scale, ts_mean, ts_sum
+from wqsim.fast_expr import (
+    correlation,
+    covariance,
+    delay,
+    delta,
+    rank,
+    scale,
+    ts_argmax,
+    ts_argmin,
+    ts_mean,
+    ts_rank,
+    ts_sum,
+)
 
 
 def test_rank_normalizes_rows_and_ignores_nans():
@@ -42,3 +54,34 @@ def test_correlation_and_scale():
     weights = scale(np.array([[1.0, -3.0, np.nan], [0.0, 0.0, np.nan]]))
     np.testing.assert_allclose(weights[0, :2], [0.25, -0.75])
     np.testing.assert_allclose(weights[1, :2], [0.0, 0.0])
+
+
+def test_time_series_rank_and_arg_operators_are_hand_calculated():
+    values = np.array(
+        [
+            [1.0, 4.0],
+            [3.0, 3.0],
+            [2.0, 2.0],
+            [5.0, 1.0],
+        ]
+    )
+
+    ranked = ts_rank(values, 3)
+    argmax = ts_argmax(values, 3)
+    argmin = ts_argmin(values, 3)
+
+    assert np.isnan(ranked[1, 0])
+    np.testing.assert_allclose(ranked[2], [0.5, 0.0])
+    np.testing.assert_allclose(ranked[3], [1.0, 0.0])
+    np.testing.assert_allclose(argmax[2], [2.0, 1.0])
+    np.testing.assert_allclose(argmin[2], [1.0, 3.0])
+
+
+def test_covariance_uses_finite_pairs_only():
+    x = np.array([[1.0, 1.0], [2.0, np.nan], [3.0, 4.0]])
+    y = np.array([[2.0, 1.0], [4.0, 2.0], [6.0, 5.0]])
+
+    actual = covariance(x, y, 3)
+
+    np.testing.assert_allclose(actual[2, 0], 2.0)
+    np.testing.assert_allclose(actual[2, 1], 6.0)
