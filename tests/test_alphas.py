@@ -1,6 +1,12 @@
 import numpy as np
 
 from wqsim.alphas import ALPHAS, AlphaContext
+from wqsim.regression import (
+    SyntheticPanelSpec,
+    alpha_regression_snapshot,
+    benchmark_alphas,
+    make_synthetic_panel,
+)
 
 
 def test_registered_alphas_evaluate_to_input_shape():
@@ -37,3 +43,35 @@ def test_registered_alphas_evaluate_to_input_shape():
     for alpha in ALPHAS.values():
         actual = alpha(context)
         assert actual.shape == (rows, cols)
+
+
+def test_synthetic_alpha_regression_snapshot_is_deterministic():
+    panel = make_synthetic_panel(SyntheticPanelSpec(rows=72, cols=8, seed=1234, nan_rate=0.04))
+
+    first = alpha_regression_snapshot(panel)
+    second = alpha_regression_snapshot(panel)
+
+    assert first == second
+    assert set(first) == set(ALPHAS)
+    assert first["eg_alpha3"] == {
+        "shape": [72, 8],
+        "finite_count": 482,
+        "nan_count": 94,
+        "posinf_count": 0,
+        "neginf_count": 0,
+        "mean": 0.5,
+        "std": 0.3292728382194115,
+        "min": 0.0,
+        "max": 1.0,
+        "sha256": "40326c3aba80d0161065cde5ff4eb24c29ef79fdcd1b6cf574a3bf482e74b011",
+    }
+
+
+def test_benchmark_alphas_reports_all_registered_alphas():
+    panel = make_synthetic_panel(SyntheticPanelSpec(rows=64, cols=6, seed=5678, nan_rate=0.02))
+
+    rows = benchmark_alphas(panel, repeat=1)
+
+    assert [row["alpha"] for row in rows] == sorted(ALPHAS)
+    assert all(row["seconds_min"] >= 0.0 for row in rows)
+    assert all(row["digest"]["shape"] == [64, 6] for row in rows)

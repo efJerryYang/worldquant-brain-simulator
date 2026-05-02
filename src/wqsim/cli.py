@@ -8,6 +8,7 @@ import typer
 from .alphas import ALPHAS
 from .config import load_config
 from .data import load_market_panel
+from .regression import SyntheticPanelSpec, benchmark_report_json, make_synthetic_panel
 from .simulator import POST_PROCESS_MODES, run_simulation
 
 app = typer.Typer(no_args_is_help=True)
@@ -124,6 +125,43 @@ def compare_postprocess(
             f"{result.metrics['mean_turnover']},"
             f"{result.metrics['min_daily_pnl']}"
         )
+
+
+@app.command()
+def benchmark_alphas(
+    source: Annotated[str, typer.Option(help="Benchmark source: synthetic or real.")] = "synthetic",
+    sample: Annotated[
+        str, typer.Option(help="Sample range for real source: test, insample, outsample, latest.")
+    ] = "test",
+    rows: Annotated[int, typer.Option(help="Synthetic panel row count.")] = 96,
+    cols: Annotated[int, typer.Option(help="Synthetic panel symbol count.")] = 12,
+    seed: Annotated[int, typer.Option(help="Synthetic panel RNG seed.")] = 20260502,
+    nan_rate: Annotated[float, typer.Option(help="Synthetic panel NaN rate.")] = 0.03,
+    repeat: Annotated[int, typer.Option(help="Repeat count per alpha.")] = 1,
+    output: Annotated[Path | None, typer.Option(help="Optional JSON report path.")] = None,
+    config: Annotated[
+        Path | None, typer.Option(help="Optional YAML config path for real source.")
+    ] = None,
+    database_path: Annotated[Path | None, typer.Option(help="SQLite market database path.")] = None,
+) -> None:
+    """Benchmark registered alpha functions without simulator post-processing."""
+    if source == "synthetic":
+        panel = make_synthetic_panel(
+            SyntheticPanelSpec(rows=rows, cols=cols, seed=seed, nan_rate=nan_rate)
+        )
+    elif source == "real":
+        cfg = load_config(config, sample=sample, database_path=database_path, plot=False)
+        panel = load_market_panel(cfg)
+    else:
+        raise typer.BadParameter("source must be 'synthetic' or 'real'")
+
+    report = benchmark_report_json(panel, repeat=repeat)
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(report)
+        typer.echo(f"benchmark: {output}")
+    else:
+        typer.echo(report)
 
 
 @app.command()

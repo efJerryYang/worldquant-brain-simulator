@@ -4,11 +4,15 @@
 
 ## Introduction
 
-This is a simulator to help with backtesting your alphas offline for platform WorldQuant Brain
+This is a simulator to help with offline backtesting for WorldQuant BRAIN-style alphas.
+It uses Polars for data loading, dense NumPy panels for market data, and batch alpha evaluation.
 
 ## Demo
 
-Some problems exist (data, expressions, procedure), so the results are still different from the platform's.
+The simulator output is not expected to exactly match the platform result. Data coverage,
+operator semantics, universe rules, and portfolio post-processing can all differ. The local
+chart below is generated with `eg_alpha3` on the `insample` range using the current
+`renormalize_after_truncation` diagnostic mode.
 
 ![insample](./docs/insample.png)
 
@@ -42,16 +46,31 @@ worldquant-brain-simulator/
 
 ## Usage
 
-This rewrite uses `uv` and Python 3.14.
+This project uses `uv` and Python 3.14.
 
 ```sh
 uv run wqsim alphas
 uv run wqsim run --alpha eg_alpha3 --sample test --output-dir tmp --metrics
+uv run wqsim run --alpha eg_alpha3 --sample insample --output-dir tmp --metrics --post-process-mode renormalize_after_truncation
+uv run wqsim compare-postprocess --alpha eg_alpha3 --sample insample
+uv run wqsim benchmark-alphas --source synthetic --rows 96 --cols 12 --output tmp/alpha_benchmark.json
 uv run pytest
 ```
 
-The new runtime loads SQLite data with Polars, converts it into dense NumPy panels, evaluates alpha functions in batch, and writes cumulative PnL figures from the CLI.
+The CLI loads SQLite data with Polars, converts it into dense NumPy panels, evaluates alpha functions in batch, and writes cumulative PnL figures.
 See [docs/accuracy.md](./docs/accuracy.md) for the current accuracy baseline and known limits.
+
+## Runtime Snapshot
+
+Local benchmark on the current full configured dataset (`sample=latest`, 1,806 panel dates,
+8,434 symbols), using one shared data load and `renormalize_after_truncation`:
+
+- Data load and panel construction: 16.3 seconds.
+- All currently registered alphas (`eg_alpha*` plus `alpha001`-`alpha010`): 1,939.6 seconds.
+- End-to-end total: 1,955.9 seconds, about 32.6 minutes.
+- The example alphas each evaluate in about 1-3 seconds after the panel is loaded; the current
+  rolling correlation/rank Alpha101 implementations dominate total runtime.
+
 <!-- 
 ## Todos
 
