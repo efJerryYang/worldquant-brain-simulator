@@ -25,24 +25,32 @@ worldquant-brain-simulator/
 |-- docs
 |-- LICENSE
 |-- README.md
-|-- requirements.txt
+|-- pyproject.toml
+|-- uv.lock
+|-- tests
 `-- src
-    |-- alpha_pool
-    |   |-- alpha101.py
-    |   |-- alpha.py
-    |   |-- expression.py
-    |   `-- __init__.py
-    |-- datasource
-    |   |-- database.py
-    |   |-- fetch.py
+    |-- wqsim
+    |   |-- alphas.py
+    |   |-- cli.py
+    |   |-- config.py
+    |   |-- data.py
+    |   |-- fast_expr.py
+    |   |-- simulator.py
     |   `-- __init__.py
     |-- main.py
-    `-- simulator
-        |-- __init__.py
-        |-- settings.yaml
-        |-- simulate.py
-        `-- util.py
 ```
+
+## Usage
+
+This rewrite uses `uv` and Python 3.14.
+
+```sh
+uv run wqsim alphas
+uv run wqsim run --alpha eg_alpha3 --sample test --output-dir tmp
+uv run pytest
+```
+
+The new runtime loads SQLite data with Polars, converts it into dense NumPy panels, evaluates alpha functions in batch, and writes cumulative PnL figures from the CLI.
 <!-- 
 ## Todos
 
