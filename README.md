@@ -9,12 +9,11 @@ It uses Polars for data loading, dense NumPy panels for market data, and batch a
 
 ## Demo
 
-The simulator output is not expected to exactly match the platform result. Data coverage,
-operator semantics, universe rules, and portfolio post-processing can all differ. The local
-chart below is generated with `eg_alpha3` on the `insample` range using the current
-`renormalize_after_truncation` diagnostic mode.
+`eg_alpha3` on the `insample` range:
 
 ![insample](./docs/insample.png)
+
+Platform reference:
 
 ![insample_platform](./docs/insample_platform.png)
 <!-- 
@@ -62,8 +61,8 @@ See [docs/accuracy.md](./docs/accuracy.md) for the current accuracy baseline and
 
 ## Runtime Snapshot
 
-Local benchmark on the current full configured dataset (`sample=latest`, 1,806 panel dates,
-8,434 symbols), using one shared data load and `renormalize_after_truncation`:
+Reference benchmark on the full configured dataset (`sample=latest`, 1,806 panel dates,
+8,434 symbols), using one shared data load:
 
 - Data load and panel construction: 16.3 seconds.
 - All currently registered alphas (`eg_alpha*` plus `alpha001`-`alpha010`): 1,939.6 seconds.

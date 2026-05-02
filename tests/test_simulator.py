@@ -2,7 +2,13 @@ import numpy as np
 
 from wqsim.config import SimulatorConfig
 from wqsim.data import MarketPanel
-from wqsim.simulator import _alpha_input_panel, _post_process, _simulate_pnl, run_simulation
+from wqsim.simulator import (
+    _alpha_input_panel,
+    _apply_decay,
+    _post_process,
+    _simulate_pnl,
+    run_simulation,
+)
 
 
 def test_simulator_smoke_path_without_database(tmp_path):
@@ -35,6 +41,7 @@ def test_simulator_smoke_path_without_database(tmp_path):
     assert result.turnover.size == result.pnl.size
     assert np.isfinite(result.cumulative_pnl).all()
     assert result.metrics["traded_days"] == result.pnl.size
+    assert result.metrics["decay"] == 0
 
 
 def test_simulator_accounting_with_known_alpha_matrix():
@@ -175,3 +182,14 @@ def test_alpha_input_panel_applies_pasteurization_before_alpha_evaluation():
 
     np.testing.assert_allclose(actual.field("close"), [[1.0, 10.0, np.nan], [2.0, 20.0, np.nan]])
     np.testing.assert_allclose(actual.field("cumulative_liq"), fields["cumulative_liq"])
+
+
+def test_apply_decay_uses_linear_decay_only_when_window_is_greater_than_one():
+    alpha = np.array([[1.0], [2.0], [4.0], [8.0]])
+
+    np.testing.assert_allclose(_apply_decay(alpha, SimulatorConfig(decay=0)), alpha)
+    np.testing.assert_allclose(_apply_decay(alpha, SimulatorConfig(decay=1)), alpha)
+    np.testing.assert_allclose(
+        _apply_decay(alpha, SimulatorConfig(decay=3)),
+        [[np.nan], [np.nan], [(1.0 + 4.0 + 12.0) / 6.0], [(2.0 + 8.0 + 24.0) / 6.0]],
+    )

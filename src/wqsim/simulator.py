@@ -10,12 +10,13 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter, MultipleLocator
 import numpy as np
 
 from .alphas import ALPHAS, AlphaContext
 from .config import SimulatorConfig
 from .data import MarketPanel, compute_universe_mask, load_market_panel, pasteurize_panel
-from .fast_expr import scale
+from .fast_expr import decay_linear, scale
 
 
 POST_PROCESS_MODES = (
@@ -56,7 +57,7 @@ def run_simulation(
     panel = panel or load_market_panel(config)
     alpha_panel = _alpha_input_panel(panel, config)
     context = AlphaContext.from_panel(alpha_panel)
-    alpha = ALPHAS[alpha_name](context)
+    alpha = _apply_decay(ALPHAS[alpha_name](context), config)
     pnl_dates, pnl, turnover = _simulate_pnl(panel, alpha, config)
     cumulative = np.cumsum(pnl)
     metrics = _build_metrics(config, panel, alpha_name, alpha, pnl_dates, pnl, turnover, cumulative)
@@ -108,6 +109,12 @@ def _alpha_input_panel(panel: MarketPanel, config: SimulatorConfig) -> MarketPan
         return panel
     universe_mask = compute_universe_mask(panel.field("cumulative_liq"), config.universe_size)
     return pasteurize_panel(panel, universe_mask)
+
+
+def _apply_decay(alpha: np.ndarray, config: SimulatorConfig) -> np.ndarray:
+    if config.decay <= 1:
+        return alpha
+    return decay_linear(alpha, config.decay)
 
 
 def _post_process(alpha_row: np.ndarray, config: SimulatorConfig) -> np.ndarray:
@@ -167,11 +174,15 @@ def _plot_result(
     end = str(dates[-1])
     path = config.output_dir / f"PnL_{alpha_name}_{start}_{end}.png"
 
-    fig, ax = plt.subplots(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(14, 8))
     ax.plot(dates.astype("datetime64[D]").astype(object), cumulative_pnl)
+    ax.set_xlim(dates[0].astype(object), dates[-1].astype(object))
+    ax.margins(x=0)
     ax.set_title(f"{alpha_name} cumulative PnL")
     ax.set_xlabel("Date")
     ax.set_ylabel("PnL")
+    ax.yaxis.set_major_locator(MultipleLocator(1_000_000))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value / 1_000:,.0f}K"))
     ax.grid(True, alpha=0.3)
     fig.autofmt_xdate()
     fig.tight_layout()
@@ -205,6 +216,7 @@ def _build_metrics(
         "traded_days": int(pnl.size),
         "universe_size": int(config.universe_size),
         "pasteurization": bool(config.pasteurization),
+        "decay": int(config.decay),
         "post_process_mode": config.post_process_mode,
         "booksize": float(config.booksize),
         "max_drawdown": _finite_float(
@@ -246,6 +258,7 @@ def _serialize_config(config: SimulatorConfig) -> dict[str, Any]:
         "delay": config.delay,
         "neutralization": config.neutralization,
         "pasteurization": config.pasteurization,
+        "decay": config.decay,
         "post_process_mode": config.post_process_mode,
         "truncation": config.truncation,
         "booksize": config.booksize,

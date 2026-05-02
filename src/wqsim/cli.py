@@ -40,6 +40,7 @@ def run(
     pasteurization: Annotated[
         bool, typer.Option(help="Mask alpha inputs outside universe.")
     ] = True,
+    decay: Annotated[int, typer.Option(help="Linear decay window applied to alpha signals.")] = 0,
 ) -> None:
     """Run one alpha through the batch simulator."""
     cfg = load_config(
@@ -53,6 +54,7 @@ def run(
         plot=plot,
         post_process_mode=post_process_mode,
         pasteurization=pasteurization,
+        decay=decay,
     )
     result = run_simulation(cfg, alpha)
     typer.echo(
@@ -70,6 +72,7 @@ def run(
             "panel_rows",
             "panel_symbols",
             "pasteurization",
+            "decay",
             "post_process_mode",
             "max_drawdown",
             "mean_abs_net_exposure",
@@ -100,6 +103,7 @@ def compare_postprocess(
     pasteurization: Annotated[
         bool, typer.Option(help="Mask alpha inputs outside universe.")
     ] = True,
+    decay: Annotated[int, typer.Option(help="Linear decay window applied to alpha signals.")] = 0,
 ) -> None:
     """Compare portfolio post-processing modes on one loaded panel."""
     base_config = load_config(
@@ -124,6 +128,7 @@ def compare_postprocess(
             plot=False,
             post_process_mode=mode,
             pasteurization=pasteurization,
+            decay=decay,
         )
         result = run_simulation(cfg, alpha, panel)
         typer.echo(

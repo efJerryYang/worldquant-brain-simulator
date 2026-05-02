@@ -42,6 +42,8 @@ written beside generated figures.
 - Default delay is one day: alpha from `today - delay` trades today's returns.
 - When `pasteurization` is on, alpha input fields are set to `NaN` outside the
   selected universe before alpha evaluation.
+- When `decay > 1`, the evaluated alpha matrix is smoothed with a linear
+  time-series decay before the trading delay is applied.
 - Universe selection uses the signal day's top `N` symbols by `cumulative_liq`.
 - Market neutralization subtracts the cross-sectional mean from the selected
   alpha row.
