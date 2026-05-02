@@ -40,6 +40,8 @@ written beside generated figures.
 ## Simulation Semantics
 
 - Default delay is one day: alpha from `today - delay` trades today's returns.
+- When `pasteurization` is on, alpha input fields are set to `NaN` outside the
+  selected universe before alpha evaluation.
 - Universe selection uses the signal day's top `N` symbols by `cumulative_liq`.
 - Market neutralization subtracts the cross-sectional mean from the selected
   alpha row.
@@ -60,8 +62,8 @@ written beside generated figures.
 
 ## Known Limits
 
-- Sector, industry, subindustry, pasteurization, unit handling, and platform
-  NaN-handling modes are not implemented.
+- Sector, industry, subindustry, unit handling, and platform NaN-handling modes
+  are not implemented.
 - Alpha101 coverage is intentionally partial.
 - The current rolling implementations prioritize clarity and testability over
   maximum speed.

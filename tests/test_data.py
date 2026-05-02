@@ -4,7 +4,7 @@ from datetime import date, timedelta
 import numpy as np
 
 from wqsim.config import SimulatorConfig
-from wqsim.data import load_market_panel
+from wqsim.data import MarketPanel, compute_universe_mask, load_market_panel, pasteurize_panel
 
 
 def test_load_market_panel_from_sqlite_fixture(tmp_path):
@@ -28,6 +28,27 @@ def test_load_market_panel_from_sqlite_fixture(tmp_path):
     np.testing.assert_allclose(panel.field("vwap")[:, 1], 20.0)
     np.testing.assert_allclose(panel.field("cumulative_liq")[:, 0], 90 * np.log(1_000.0))
     np.testing.assert_allclose(panel.field("cumulative_liq")[:, 1], 90 * np.log(4_000.0))
+
+
+def test_pasteurize_panel_masks_inputs_outside_universe():
+    fields = {
+        "close": np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+        "volume": np.array([[10.0, 20.0, 30.0], [40.0, 50.0, 60.0]]),
+        "cumulative_liq": np.array([[1.0, 3.0, 2.0], [4.0, 1.0, 5.0]]),
+    }
+    panel = MarketPanel(
+        dates=np.array(["2020-01-01", "2020-01-02"], dtype="datetime64[D]"),
+        symbols=np.array(["A", "B", "C"]),
+        fields=fields,
+    )
+
+    mask = compute_universe_mask(panel.field("cumulative_liq"), universe_size=2)
+    actual = pasteurize_panel(panel, mask)
+
+    np.testing.assert_array_equal(mask, [[False, True, True], [True, False, True]])
+    np.testing.assert_allclose(actual.field("close"), [[np.nan, 2.0, 3.0], [4.0, np.nan, 6.0]])
+    np.testing.assert_allclose(actual.field("volume"), [[np.nan, 20.0, 30.0], [40.0, np.nan, 60.0]])
+    np.testing.assert_allclose(actual.field("cumulative_liq"), fields["cumulative_liq"])
 
 
 def _create_fixture_database(database_path):

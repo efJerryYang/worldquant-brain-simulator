@@ -14,7 +14,7 @@ import numpy as np
 
 from .alphas import ALPHAS, AlphaContext
 from .config import SimulatorConfig
-from .data import MarketPanel, load_market_panel
+from .data import MarketPanel, compute_universe_mask, load_market_panel, pasteurize_panel
 from .fast_expr import scale
 
 
@@ -54,7 +54,8 @@ def run_simulation(
         raise ValueError(f"Unknown alpha '{alpha_name}'. Available alphas: {available}")
 
     panel = panel or load_market_panel(config)
-    context = AlphaContext.from_panel(panel)
+    alpha_panel = _alpha_input_panel(panel, config)
+    context = AlphaContext.from_panel(alpha_panel)
     alpha = ALPHAS[alpha_name](context)
     pnl_dates, pnl, turnover = _simulate_pnl(panel, alpha, config)
     cumulative = np.cumsum(pnl)
@@ -100,6 +101,13 @@ def _simulate_pnl(
         np.array(pnl, dtype=np.float64),
         np.array(turnover, dtype=np.float64),
     )
+
+
+def _alpha_input_panel(panel: MarketPanel, config: SimulatorConfig) -> MarketPanel:
+    if not config.pasteurization:
+        return panel
+    universe_mask = compute_universe_mask(panel.field("cumulative_liq"), config.universe_size)
+    return pasteurize_panel(panel, universe_mask)
 
 
 def _post_process(alpha_row: np.ndarray, config: SimulatorConfig) -> np.ndarray:
@@ -196,6 +204,7 @@ def _build_metrics(
         "alpha_finite_count": int(finite_alpha.sum()),
         "traded_days": int(pnl.size),
         "universe_size": int(config.universe_size),
+        "pasteurization": bool(config.pasteurization),
         "post_process_mode": config.post_process_mode,
         "booksize": float(config.booksize),
         "max_drawdown": _finite_float(
@@ -236,6 +245,7 @@ def _serialize_config(config: SimulatorConfig) -> dict[str, Any]:
         "universe": config.universe,
         "delay": config.delay,
         "neutralization": config.neutralization,
+        "pasteurization": config.pasteurization,
         "post_process_mode": config.post_process_mode,
         "truncation": config.truncation,
         "booksize": config.booksize,

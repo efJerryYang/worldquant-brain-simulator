@@ -22,6 +22,34 @@ class MarketPanel:
         return self.fields[name]
 
 
+PASTEURIZED_FIELDS = ("open", "high", "low", "close", "volume", "returns", "vwap", "typical_price")
+
+
+def pasteurize_panel(panel: MarketPanel, universe_mask: np.ndarray) -> MarketPanel:
+    fields = {}
+    for name, values in panel.fields.items():
+        if name in PASTEURIZED_FIELDS:
+            masked = values.copy()
+            masked[~universe_mask] = np.nan
+            fields[name] = masked
+        else:
+            fields[name] = values
+    return MarketPanel(dates=panel.dates, symbols=panel.symbols, fields=fields)
+
+
+def compute_universe_mask(cumulative_liq: np.ndarray, universe_size: int) -> np.ndarray:
+    mask = np.zeros(cumulative_liq.shape, dtype=bool)
+    for row_idx, row in enumerate(cumulative_liq):
+        valid = np.isfinite(row)
+        if not valid.any():
+            continue
+        valid_idx = np.flatnonzero(valid)
+        top_count = min(universe_size, valid_idx.size)
+        ranked = valid_idx[np.argpartition(row[valid_idx], -top_count)[-top_count:]]
+        mask[row_idx, ranked] = True
+    return mask
+
+
 def load_market_panel(config: SimulatorConfig) -> MarketPanel:
     start, end = config.load_range
     raw = _read_sqlite(config.database_path, config.table, start, end)

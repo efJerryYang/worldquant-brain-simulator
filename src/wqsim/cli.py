@@ -37,6 +37,9 @@ def run(
     post_process_mode: Annotated[
         str, typer.Option(help="Portfolio post-processing mode.")
     ] = "legacy",
+    pasteurization: Annotated[
+        bool, typer.Option(help="Mask alpha inputs outside universe.")
+    ] = True,
 ) -> None:
     """Run one alpha through the batch simulator."""
     cfg = load_config(
@@ -49,6 +52,7 @@ def run(
         output_dir=output_dir,
         plot=plot,
         post_process_mode=post_process_mode,
+        pasteurization=pasteurization,
     )
     result = run_simulation(cfg, alpha)
     typer.echo(
@@ -65,6 +69,7 @@ def run(
             "traded_days",
             "panel_rows",
             "panel_symbols",
+            "pasteurization",
             "post_process_mode",
             "max_drawdown",
             "mean_abs_net_exposure",
@@ -92,6 +97,9 @@ def compare_postprocess(
         str | None, typer.Option(help="Simulation start date, YYYY-MM-DD.")
     ] = None,
     end_date: Annotated[str | None, typer.Option(help="Data end date, YYYY-MM-DD.")] = None,
+    pasteurization: Annotated[
+        bool, typer.Option(help="Mask alpha inputs outside universe.")
+    ] = True,
 ) -> None:
     """Compare portfolio post-processing modes on one loaded panel."""
     base_config = load_config(
@@ -115,6 +123,7 @@ def compare_postprocess(
             end_date=end_date,
             plot=False,
             post_process_mode=mode,
+            pasteurization=pasteurization,
         )
         result = run_simulation(cfg, alpha, panel)
         typer.echo(
